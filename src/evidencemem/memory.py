@@ -5,7 +5,10 @@ from __future__ import annotations
 from collections import Counter
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from heapq import heapify, heappop, heappush
+from math import ceil
 from pathlib import Path
+from typing import Literal
 
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
@@ -18,15 +21,44 @@ from .utils import FloatArray, cosine_to_unit, normalize_rows, normalize_vector
 
 @dataclass(frozen=True, slots=True)
 class ReliabilityWeights:
-    compactness: float = 0.40
+    compactness: float = 0.45
     text_alignment: float = 0.20
-    purity: float = 0.40
+    purity: float = 0.35
 
     def __post_init__(self) -> None:
         if min(self.compactness, self.text_alignment, self.purity) < 0:
             raise ValueError("reliability weights must be non-negative")
         if self.compactness + self.text_alignment + self.purity <= 0:
             raise ValueError("at least one reliability weight must be positive")
+
+
+@dataclass(frozen=True, slots=True)
+class SelectionConfig:
+    """Exact-budget prototype selection settings.
+
+    ``reliability_facility`` first over-clusters each class to obtain real-image
+    medoid candidates, then greedily maximizes a monotone submodular objective:
+    class coverage (facility location) plus a modular reliability reward.
+    ``kmeans_medoids`` retains one medoid from each of exactly ``budget``
+    clusters and is the matched plain-medoid baseline.
+    """
+
+    strategy: Literal["reliability_facility", "kmeans_medoids"] = (
+        "reliability_facility"
+    )
+    candidate_multiplier: float = 2.0
+    coverage_weight: float = 0.75
+    reliability_weight: float = 0.25
+
+    def __post_init__(self) -> None:
+        if self.strategy not in {"reliability_facility", "kmeans_medoids"}:
+            raise ValueError("unknown prototype selection strategy")
+        if self.candidate_multiplier < 1.0:
+            raise ValueError("candidate_multiplier must be at least one")
+        if self.coverage_weight < 0 or self.reliability_weight < 0:
+            raise ValueError("selection weights must be non-negative")
+        if self.coverage_weight + self.reliability_weight <= 0:
+            raise ValueError("at least one selection weight must be positive")
 
 
 class EvidenceMemory:
@@ -38,6 +70,7 @@ class EvidenceMemory:
         *,
         index_backend: str = "auto",
         reliability_weights: ReliabilityWeights | None = None,
+        selection_config: SelectionConfig | None = None,
     ) -> None:
         self.prototypes: list[Prototype] = list(prototypes or [])
         self.class_names: dict[int, str] = {
@@ -45,6 +78,7 @@ class EvidenceMemory:
         }
         self.index_backend = index_backend
         self.reliability_weights = reliability_weights or ReliabilityWeights()
+        self.selection_config = selection_config or SelectionConfig()
         self._index: VectorIndex = make_index(index_backend)
         if self.prototypes:
             self._rebuild_index()
@@ -86,21 +120,77 @@ class EvidenceMemory:
             return 1.0
         return float(sum(weight * value for weight, value in weighted) / active_weight)
 
+    def _select_exact_budget(
+        self,
+        candidates: Sequence[Prototype],
+        class_vectors: FloatArray,
+        budget: int,
+    ) -> list[Prototype]:
+        """Greedily maximize coverage plus reliability at an exact budget."""
+        if budget >= len(candidates):
+            return list(candidates)
+        ordered = sorted(candidates, key=lambda item: item.sample_id)
+        candidate_vectors = np.stack([item.vector for item in ordered])
+        coverage = np.asarray(
+            cosine_to_unit(class_vectors @ candidate_vectors.T), dtype=np.float32
+        )
+        current = np.zeros(class_vectors.shape[0], dtype=np.float32)
+        selected: list[int] = []
+        config = self.selection_config
+        initial_coverage = coverage.mean(axis=0)
+        queue = [
+            (
+                -(
+                    config.coverage_weight * float(initial_coverage[index])
+                    + config.reliability_weight * ordered[index].reliability / budget
+                ),
+                index,
+                0,
+            )
+            for index in range(len(ordered))
+        ]
+        heapify(queue)
+
+        for iteration in range(budget):
+            while queue:
+                _, candidate_index, evaluated_at = heappop(queue)
+                if evaluated_at == iteration:
+                    selected.append(candidate_index)
+                    current = np.maximum(current, coverage[:, candidate_index])
+                    break
+                proposed = np.maximum(current, coverage[:, candidate_index])
+                coverage_gain = float(np.mean(proposed - current))
+                reliability_gain = ordered[candidate_index].reliability / budget
+                gain = (
+                    config.coverage_weight * coverage_gain
+                    + config.reliability_weight * reliability_gain
+                )
+                heappush(queue, (-gain, candidate_index, iteration))
+            else:
+                raise RuntimeError("candidate queue was exhausted before reaching the budget")
+        return [ordered[index] for index in selected]
+
     @staticmethod
-    def _purity_at_medoid(
-        embeddings: FloatArray,
+    def _purities_at_medoids(
+        index: VectorIndex,
         labels: NDArray[np.int64],
-        medoid_index: int,
+        medoid_indices: Sequence[int],
         class_id: int,
         k: int,
-    ) -> float:
-        if embeddings.shape[0] == 1:
-            return 1.0
-        k_eff = min(max(k, 1), embeddings.shape[0] - 1)
-        similarities = embeddings @ embeddings[medoid_index]
-        similarities[medoid_index] = -np.inf
-        neighbor_indices = np.argpartition(-similarities, kth=k_eff - 1)[:k_eff]
-        return float(np.mean(labels[neighbor_indices] == class_id))
+        vectors: FloatArray,
+    ) -> list[float]:
+        if index.size == 1:
+            return [1.0] * len(medoid_indices)
+        k_eff = min(max(k, 1), index.size - 1)
+        medoid_array = np.asarray(medoid_indices, dtype=np.int64)
+        result = index.search(vectors[medoid_array], min(index.size, k_eff + 1))
+        purities: list[float] = []
+        for medoid_index, neighbor_row in zip(medoid_array, result.indices, strict=True):
+            neighbors = neighbor_row[neighbor_row != medoid_index][:k_eff]
+            purities.append(
+                float(np.mean(labels[neighbors] == class_id)) if len(neighbors) else 1.0
+            )
+        return purities
 
     def build(
         self,
@@ -113,7 +203,7 @@ class EvidenceMemory:
         image_paths: Sequence[str | None] | None = None,
         text_prototypes: Mapping[int, ArrayLike] | None = None,
         purity_k: int = 10,
-        duplicate_threshold: float | None = 0.98,
+        duplicate_threshold: float | None = None,
         random_state: int = 0,
     ) -> EvidenceMemory:
         """Build class-wise KMeans medoids and compute their reliability."""
@@ -136,13 +226,25 @@ class EvidenceMemory:
             int(class_id): normalize_vector(vector, name=f"text prototype {class_id}")
             for class_id, vector in (text_prototypes or {}).items()
         }
+        purity_index = make_index(self.index_backend)
+        purity_index.build(matrix)
         built: list[Prototype] = []
         for class_id in sorted(int(value) for value in np.unique(label_array)):
             if class_id not in class_names:
                 raise ValueError(f"missing class name for class id {class_id}")
             global_indices = np.flatnonzero(label_array == class_id)
             class_vectors = matrix[global_indices]
-            cluster_count = min(prototypes_per_class, class_vectors.shape[0])
+            requested = min(prototypes_per_class, class_vectors.shape[0])
+            if self.selection_config.strategy == "reliability_facility":
+                expanded_budget = int(
+                    ceil(requested * self.selection_config.candidate_multiplier)
+                )
+                cluster_count = min(
+                    class_vectors.shape[0],
+                    max(requested, expanded_budget),
+                )
+            else:
+                cluster_count = requested
 
             if cluster_count == 1:
                 assignments = np.zeros(class_vectors.shape[0], dtype=np.int64)
@@ -157,6 +259,7 @@ class EvidenceMemory:
                 assignments = np.asarray(clusterer.fit_predict(class_vectors), dtype=np.int64)
 
             candidates: list[Prototype] = []
+            candidate_indices: list[int] = []
             for cluster_id in range(cluster_count):
                 local_members = np.flatnonzero(assignments == cluster_id)
                 if local_members.size == 0:
@@ -168,13 +271,9 @@ class EvidenceMemory:
                 medoid_global = int(global_indices[medoid_local])
                 medoid = matrix[medoid_global]
                 compactness = float(np.mean(member_vectors @ medoid))
-                purity = self._purity_at_medoid(
-                    matrix, label_array, medoid_global, class_id, purity_k
-                )
                 text_alignment = (
                     float(medoid @ text_vectors[class_id]) if class_id in text_vectors else None
                 )
-                reliability = self._combine_reliability(compactness, purity, text_alignment)
                 candidates.append(
                     Prototype(
                         vector=medoid,
@@ -184,23 +283,50 @@ class EvidenceMemory:
                         sample_id=str(ids[medoid_global]),
                         image_path=paths[medoid_global],
                         cluster_size=int(local_members.size),
-                        reliability=reliability,
+                        reliability=1.0,
                         compactness=compactness,
-                        purity=purity,
+                        purity=1.0,
                         text_alignment=text_alignment,
                     )
                 )
+                candidate_indices.append(medoid_global)
 
-            candidates.sort(key=lambda item: (-item.reliability, item.sample_id))
-            accepted: list[Prototype] = []
-            for candidate in candidates:
-                is_duplicate = False
-                if duplicate_threshold is not None and accepted:
-                    similarities = [candidate.vector @ item.vector for item in accepted]
-                    is_duplicate = max(similarities) > duplicate_threshold
-                if not is_duplicate:
-                    accepted.append(candidate)
-            built.extend(accepted)
+            purities = self._purities_at_medoids(
+                purity_index,
+                label_array,
+                candidate_indices,
+                class_id,
+                purity_k,
+                matrix,
+            )
+            for candidate, purity in zip(candidates, purities, strict=True):
+                candidate.purity = purity
+                candidate.reliability = self._combine_reliability(
+                    candidate.compactness,
+                    candidate.purity,
+                    candidate.text_alignment,
+                )
+
+            if duplicate_threshold is not None:
+                candidates.sort(key=lambda item: (-item.reliability, item.sample_id))
+                deduplicated: list[Prototype] = []
+                for candidate in candidates:
+                    similarities = [candidate.vector @ item.vector for item in deduplicated]
+                    if not similarities or max(similarities) <= duplicate_threshold:
+                        deduplicated.append(candidate)
+                candidates = deduplicated
+
+            if self.selection_config.strategy == "reliability_facility":
+                selected = self._select_exact_budget(candidates, class_vectors, requested)
+            else:
+                selected = list(candidates[:requested])
+            if len(selected) != requested:
+                raise RuntimeError(
+                    "prototype selection returned "
+                    f"{len(selected)} items for a budget of {requested}; "
+                    "disable duplicate filtering or raise its threshold"
+                )
+            built.extend(selected)
 
         if not built:
             raise ValueError("memory construction produced no prototypes")
@@ -243,7 +369,7 @@ class EvidenceMemory:
         image_paths: Sequence[str | None] | None = None,
         text_prototype: ArrayLike | None = None,
         purity_k: int = 10,
-        duplicate_threshold: float | None = 0.98,
+        duplicate_threshold: float | None = None,
         random_state: int = 0,
     ) -> int:
         """Insert a previously unseen class without changing existing prototypes."""
@@ -252,7 +378,9 @@ class EvidenceMemory:
         matrix = normalize_rows(support_embeddings, name="support_embeddings")
         labels = np.full(matrix.shape[0], class_id, dtype=np.int64)
         temporary = EvidenceMemory(
-            index_backend="numpy", reliability_weights=self.reliability_weights
+            index_backend="numpy",
+            reliability_weights=self.reliability_weights,
+            selection_config=self.selection_config,
         )
         temporary.build(
             matrix,
@@ -414,6 +542,23 @@ class EvidenceMemory:
                 dtype=np.float32,
             ),
             usage_counts=np.array([item.usage_count for item in self.prototypes], dtype=np.int64),
+            reliability_weights=np.array(
+                [
+                    self.reliability_weights.compactness,
+                    self.reliability_weights.text_alignment,
+                    self.reliability_weights.purity,
+                ],
+                dtype=np.float64,
+            ),
+            selection_strategy=np.array(self.selection_config.strategy, dtype=np.str_),
+            selection_values=np.array(
+                [
+                    self.selection_config.candidate_multiplier,
+                    self.selection_config.coverage_weight,
+                    self.selection_config.reliability_weight,
+                ],
+                dtype=np.float64,
+            ),
         )
         return destination
 
@@ -421,6 +566,25 @@ class EvidenceMemory:
     def load(cls, path: str | Path, *, index_backend: str = "auto") -> EvidenceMemory:
         """Restore an archive produced by :meth:`save` and rebuild its index."""
         with np.load(Path(path), allow_pickle=False) as archive:
+            if "reliability_weights" in archive.files:
+                stored_reliability = archive["reliability_weights"]
+                reliability_weights = ReliabilityWeights(
+                    compactness=float(stored_reliability[0]),
+                    text_alignment=float(stored_reliability[1]),
+                    purity=float(stored_reliability[2]),
+                )
+            else:
+                reliability_weights = ReliabilityWeights()
+            if "selection_values" in archive.files:
+                stored_selection = archive["selection_values"]
+                selection_config = SelectionConfig(
+                    strategy=str(archive["selection_strategy"]),
+                    candidate_multiplier=float(stored_selection[0]),
+                    coverage_weight=float(stored_selection[1]),
+                    reliability_weight=float(stored_selection[2]),
+                )
+            else:
+                selection_config = SelectionConfig()
             prototypes = []
             for index in range(int(archive["vectors"].shape[0])):
                 alignment = float(archive["text_alignments"][index])
@@ -440,4 +604,9 @@ class EvidenceMemory:
                         usage_count=int(archive["usage_counts"][index]),
                     )
                 )
-        return cls(prototypes, index_backend=index_backend)
+        return cls(
+            prototypes,
+            index_backend=index_backend,
+            reliability_weights=reliability_weights,
+            selection_config=selection_config,
+        )

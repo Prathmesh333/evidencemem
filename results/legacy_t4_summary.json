@@ -1,0 +1,25 @@
+{
+  "artifact": "evidencemem.ipynb",
+  "sha256": "9bc54c5e68e71fe975cf8ee41ec94e2aea720522c3bec64777768d653d5c2cbb",
+  "source_revision": "1eb8badd97c341a24be726b912a92c6b190bad7d",
+  "hardware": "NVIDIA Tesla T4",
+  "status": "historical_invalid_for_final_claims",
+  "valid_for_final_claims": false,
+  "known_issues": [
+    "OpenAI CLIP weights were loaded with ViT-B-32 instead of ViT-B-32-quickgelu",
+    "DataLoader worker cleanup emitted repeated child-process AssertionError messages",
+    "the notebook reimplemented prototype fitting and scoring instead of importing the package",
+    "fusion_weight had opposite meanings in the notebook and reusable classifier",
+    "reliability affected voting but not prototype selection",
+    "Tip-Adapter and a matched reliability-selection ablation were absent",
+    "raw outputs lacked a complete hash manifest and environment lock"
+  ],
+  "historical_observations_percent": {
+    "cifar10_evidencemem_fused_accuracy_mean": 89.5767,
+    "cifar10_clip_zero_shot_accuracy": 85.25,
+    "cifar10_kmeans_medoids_accuracy_mean": 86.09,
+    "cifar10_linear_probe_accuracy": 93.84,
+    "cifar100_evidencemem_fused_accuracy_mean": 66.73,
+    "cifar100_linear_probe_accuracy": 74.85
+  }
+}

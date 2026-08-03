@@ -37,7 +37,7 @@ def main() -> None:
     classifier = EvidenceMemClassifier(
         memory,
         {index: center for index, center in enumerate(centers)},
-        fusion_weight=0.5,
+        text_weight=0.5,
     )
     prediction = classifier.predict_embedding(centers[1], k=5)
     if prediction.class_id != 1:

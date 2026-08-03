@@ -1,40 +1,34 @@
 # Compute budget
 
-## Available machine
+## Primary runtime
 
-- GPU: NVIDIA GeForce GTX 1650, 4 GB VRAM.
-- Local Python: 3.13.2; the reproducible experiment environment is pinned to
-  Python 3.11 for wider OpenCLIP compatibility.
-- Core packages already present: PyTorch, torchvision, FAISS, NumPy,
-  scikit-learn, PyYAML, pytest.
-- Missing at project start: `open_clip_torch`.
+The corrected notebook targets a Google Colab NVIDIA T4 with 16 GB VRAM. Colab’s base
+environment changes over time, so the notebook records its actual Python, CUDA, PyTorch,
+torchvision, OpenCLIP, FAISS, and package versions instead of claiming a permanent image.
 
-## Budget policy
+The local machine can run tests and synthetic checks. Full image encoding and the
+three-seed paper-mode experiment are assigned to the T4.
 
-The encoder remains frozen. Image embeddings are extracted once per dataset and
-stored as normalized float32 arrays with a manifest recording model, weights,
-transform, split hash, dimension, and sample count. All seeds, memory budgets,
-fusion sweeps, and OOD scores reuse those arrays.
+## Storage estimate
 
-Approximate raw embedding storage for a 512-dimensional float32 encoder is
-2 KiB per image. CIFAR-10, CIFAR-100, and the SVHN test set together require
-well under 0.5 GB for embeddings before metadata and backups.
+A 512-dimensional float32 embedding uses 2 KiB. CIFAR-10 train/validation/test,
+CIFAR-100 test, and SVHN test embeddings fit comfortably below 0.5 GB before archive
+overhead. Embeddings remain float32 because the historical float16 cache introduced an
+unnecessary numerical mismatch between fresh and resumed runs.
 
-## Pre-flight pilot
+## Runtime controls
 
-1. Encode 512 CIFAR-10 images at batch sizes 32 and 64.
-2. Record images/second, peak VRAM, and output checksum.
-3. Select the largest batch size with at least 10% VRAM headroom.
-4. Extrapolate full extraction time and add a 40% rerun contingency.
-5. Run the full pipeline on 1,000 cached embeddings before downloading or
-   processing optional datasets.
+- Encode each exact dataset split once and reuse its verified cache.
+- Use mixed precision only inside the frozen encoder forward pass.
+- Use `num_workers=0` on Colab to avoid worker cleanup failures.
+- Use batch FAISS search for purity and retrieval when available.
+- Use lazy greedy selection for the submodular objective.
+- Save every long-table row incrementally.
+- Run bounded validation mode before the full protocol.
 
-## Scope controls
+## Expansion policy
 
-- Mandatory first: CIFAR-10, SVHN OOD, memory budgets, fusion, confidence,
-  continual insertion, and ablations.
-- CIFAR-100 is the first extension and near-OOD dataset.
-- SigLIP, Tiny ImageNet, HNSW, product quantization, and LLaVA reranking remain
-  optional until every mandatory result is reproducible.
-- No paid API or cloud-GPU spend is authorized by this plan.
-
+The current T4 run is a go/no-go pilot for the primary claim. Large-scale datasets,
+additional encoders, and paid compute are justified only after the matched CIFAR result
+is positive. A strong archival submission will require that extension; the small run is
+not presented as sufficient by itself.

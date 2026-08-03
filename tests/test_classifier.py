@@ -31,7 +31,7 @@ def make_memory() -> tuple[EvidenceMemory, dict[int, np.ndarray]]:
 
 def test_classifier_returns_prediction_scores_and_evidence() -> None:
     memory, texts = make_memory()
-    classifier = EvidenceMemClassifier(memory, texts, fusion_weight=0.5)
+    classifier = EvidenceMemClassifier(memory, texts, text_weight=0.5)
 
     prediction = classifier.predict_embedding(np.array([1.0, 0.0, 0.0]), k=3)
 
@@ -54,3 +54,18 @@ def test_classifier_can_reject_low_agreement() -> None:
     prediction = classifier.predict_embedding(np.array([0.7, 0.7, 0.0]), k=4)
 
     assert prediction.is_unknown
+
+
+def test_text_weight_has_unambiguous_endpoints() -> None:
+    memory, texts = make_memory()
+    query = np.array([0.8, 0.2, 0.0], dtype=np.float32)
+
+    visual_only = EvidenceMemClassifier(memory, texts, text_weight=0.0).predict_embedding(
+        query, k=3
+    )
+    text_only = EvidenceMemClassifier(memory, texts, text_weight=1.0).predict_embedding(
+        query, k=3
+    )
+
+    assert visual_only.final_scores == visual_only.visual_scores
+    assert text_only.final_scores == text_only.text_scores

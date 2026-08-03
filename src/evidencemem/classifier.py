@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 
@@ -46,13 +47,24 @@ class EvidenceMemClassifier:
         memory: EvidenceMemory,
         text_prototypes: Mapping[int, ArrayLike] | None = None,
         *,
-        fusion_weight: float = 0.50,
+        text_weight: float = 0.50,
+        fusion_weight: float | None = None,
         visual_temperature: float = 0.07,
         text_temperature: float = 0.07,
         confidence: ConfidenceConfig | None = None,
     ) -> None:
-        if not 0.0 <= fusion_weight <= 1.0:
-            raise ValueError("fusion_weight must lie in [0, 1]")
+        if fusion_weight is not None:
+            if text_weight != 0.50:
+                raise ValueError("pass either text_weight or legacy fusion_weight, not both")
+            warnings.warn(
+                "fusion_weight is deprecated because it meant visual weight; "
+                "use text_weight instead",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            text_weight = 1.0 - fusion_weight
+        if not 0.0 <= text_weight <= 1.0:
+            raise ValueError("text_weight must lie in [0, 1]")
         if visual_temperature <= 0 or text_temperature <= 0:
             raise ValueError("temperatures must be positive")
         self.memory = memory
@@ -68,7 +80,7 @@ class EvidenceMemClassifier:
             ]
             if mismatched:
                 raise ValueError(f"text prototype dimensions mismatch for classes {mismatched}")
-        self.fusion_weight = fusion_weight
+        self.text_weight = text_weight
         self.visual_temperature = visual_temperature
         self.text_temperature = text_temperature
         self.confidence_config = confidence or ConfidenceConfig()
@@ -111,10 +123,10 @@ class EvidenceMemClassifier:
         class_ids = sorted(set(self.memory.class_names) | set(self.text_prototypes))
         visual_scores = self._visual_scores(evidence, class_ids, self.visual_temperature)
         text_scores = self._text_scores(vector, class_ids)
-        effective_fusion = self.fusion_weight if self.text_prototypes else 1.0
+        effective_text_weight = self.text_weight if self.text_prototypes else 0.0
         final_scores = {
-            class_id: effective_fusion * visual_scores[class_id]
-            + (1.0 - effective_fusion) * text_scores[class_id]
+            class_id: (1.0 - effective_text_weight) * visual_scores[class_id]
+            + effective_text_weight * text_scores[class_id]
             for class_id in class_ids
         }
 

@@ -11,6 +11,18 @@ from numpy.typing import NDArray
 from .utils import normalize_rows
 
 
+def canonical_open_clip_model_name(model_name: str, pretrained: str) -> str:
+    """Return an activation-compatible OpenCLIP model definition.
+
+    Original OpenAI CLIP checkpoints were trained with QuickGELU. OpenCLIP's
+    un-suffixed ViT definitions now use native GELU, which triggers a warning
+    and can reduce zero-shot accuracy when paired with ``pretrained='openai'``.
+    """
+    if pretrained.lower() == "openai" and not model_name.lower().endswith("-quickgelu"):
+        return f"{model_name}-quickgelu"
+    return model_name
+
+
 class VisionLanguageEncoder(Protocol):
     """Minimal image/text encoder contract required by EvidenceMem."""
 
@@ -31,8 +43,8 @@ class OpenClipEncoder:
 
     def __init__(
         self,
-        model_name: str = "ViT-B-32",
-        pretrained: str = "laion2b_s34b_b79k",
+        model_name: str = "ViT-B-32-quickgelu",
+        pretrained: str = "openai",
         *,
         device: str | None = None,
         precision: str = "fp16",
@@ -46,19 +58,20 @@ class OpenClipEncoder:
             ) from exc
 
         self._torch = torch
-        self.model_name = model_name
+        self.requested_model_name = model_name
+        self.model_name = canonical_open_clip_model_name(model_name, pretrained)
         self.pretrained = pretrained
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.precision = precision if self.device == "cuda" else "fp32"
 
         model, _, preprocess = open_clip.create_model_and_transforms(
-            model_name, pretrained=pretrained, device=self.device
+            self.model_name, pretrained=pretrained, device=self.device
         )
         self.model = model.eval()
         for parameter in self.model.parameters():
             parameter.requires_grad_(False)
         self.preprocess = preprocess
-        self.tokenizer = open_clip.get_tokenizer(model_name)
+        self.tokenizer = open_clip.get_tokenizer(self.model_name)
 
         visual_dimension = getattr(self.model.visual, "output_dim", None)
         if visual_dimension is None:

@@ -2,7 +2,7 @@ from collections import Counter
 
 import numpy as np
 
-from evidencemem import EvidenceMemory
+from evidencemem import EvidenceMemory, Prototype, ReliabilityWeights, SelectionConfig
 
 
 def clustered_data(seed: int = 0) -> tuple[np.ndarray, np.ndarray, dict[int, np.ndarray]]:
@@ -91,3 +91,65 @@ def test_save_and_load_round_trip(tmp_path) -> None:
     assert len(restored) == len(memory)
     assert restored.class_names == memory.class_names
     assert restored.search(centers[0], k=1)[0].class_id == 0
+    assert restored.reliability_weights == memory.reliability_weights
+    assert restored.selection_config == memory.selection_config
+
+
+def test_reliability_term_can_change_exact_budget_selection() -> None:
+    candidates = [
+        Prototype(
+            vector=np.array([1.0, 0.0]),
+            centroid=np.array([1.0, 0.0]),
+            class_id=0,
+            class_name="zero",
+            sample_id="coverage-a",
+            reliability=0.1,
+        ),
+        Prototype(
+            vector=np.array([0.0, 1.0]),
+            centroid=np.array([0.0, 1.0]),
+            class_id=0,
+            class_name="zero",
+            sample_id="coverage-b",
+            reliability=0.1,
+        ),
+        Prototype(
+            vector=np.array([-1.0, 0.0]),
+            centroid=np.array([-1.0, 0.0]),
+            class_id=0,
+            class_name="zero",
+            sample_id="reliable",
+            reliability=1.0,
+        ),
+    ]
+    class_vectors = np.array([[1.0, 0.0], [0.0, 1.0]], dtype=np.float32)
+    coverage_memory = EvidenceMemory(
+        selection_config=SelectionConfig(coverage_weight=1.0, reliability_weight=0.0)
+    )
+    reliability_memory = EvidenceMemory(
+        selection_config=SelectionConfig(coverage_weight=0.0, reliability_weight=1.0)
+    )
+
+    coverage = coverage_memory._select_exact_budget(candidates, class_vectors, budget=1)
+    reliable = reliability_memory._select_exact_budget(candidates, class_vectors, budget=1)
+
+    assert coverage[0].sample_id == "coverage-a"
+    assert reliable[0].sample_id == "reliable"
+
+
+def test_build_returns_exact_budget_per_class() -> None:
+    embeddings, labels, _ = clustered_data()
+    memory = EvidenceMemory(
+        index_backend="numpy",
+        reliability_weights=ReliabilityWeights(),
+        selection_config=SelectionConfig(candidate_multiplier=3.0),
+    ).build(
+        embeddings,
+        labels,
+        {0: "zero", 1: "one"},
+        prototypes_per_class=4,
+        duplicate_threshold=None,
+        random_state=11,
+    )
+
+    assert Counter(item.class_id for item in memory.prototypes) == {0: 4, 1: 4}

@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 
+from evidencemem.artifacts import git_revision
 from evidencemem.cache import save_embedding_cache
 from evidencemem.data import save_split, stratified_train_validation_indices
 from evidencemem.encoder import OpenClipEncoder
@@ -27,12 +29,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dataset", choices=("cifar10", "cifar100", "svhn"), default="cifar10")
     parser.add_argument("--root", type=Path, default=Path("data/raw"))
     parser.add_argument("--output", type=Path, default=Path("outputs/embeddings"))
-    parser.add_argument("--model", default="ViT-B-32")
-    parser.add_argument("--pretrained", default="laion2b_s34b_b79k")
+    parser.add_argument("--model", default="ViT-B-32-quickgelu")
+    parser.add_argument("--pretrained", default="openai")
     parser.add_argument("--batch-size", type=int, default=64)
-    parser.add_argument("--workers", type=int, default=2)
+    parser.add_argument("--workers", type=int, default=0)
     parser.add_argument("--validation-size", type=int, default=5000)
-    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--max-samples", type=int, default=None)
     return parser.parse_args()
 
@@ -78,6 +80,8 @@ def main() -> None:
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(args.seed)
     encoder = OpenClipEncoder(args.model, args.pretrained)
+    preprocess_fingerprint = hashlib.sha256(repr(encoder.preprocess).encode()).hexdigest()
+    source_revision = git_revision(Path(__file__).resolve().parents[1])
     training, testing, training_labels, class_names = dataset_bundle(
         args.dataset, args.root, encoder.preprocess
     )
@@ -125,8 +129,10 @@ def main() -> None:
             sample_ids,
             dataset=args.dataset,
             split=split_name,
-            model_name=args.model,
-            pretrained=args.pretrained,
+            model_name=encoder.model_name,
+            pretrained=encoder.pretrained,
+            preprocess_fingerprint=preprocess_fingerprint,
+            source_revision=source_revision,
         )
         print(f"saved {split_name}: {embeddings.shape}")
 

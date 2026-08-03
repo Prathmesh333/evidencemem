@@ -4,31 +4,33 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "evidencemem"
-version = "0.1.0"
+version = "0.2.0"
 description = "Reliability-aware prototype memory for frozen vision-language embeddings"
 readme = "README.md"
 requires-python = ">=3.11"
 license = {file = "LICENSE"}
 authors = [{name = "Prathamesh Nikam"}]
 dependencies = [
-  "numpy>=1.26",
-  "scikit-learn>=1.4",
-  "PyYAML>=6.0",
+  "numpy>=1.26,<3",
+  "scikit-learn>=1.4,<2",
+  "PyYAML>=6.0,<7",
 ]
 
 [project.optional-dependencies]
 vision = [
-  "torch>=2.2",
-  "torchvision>=0.17",
-  "open_clip_torch>=2.24",
-  "faiss-cpu>=1.8; platform_system != 'Windows'",
-  "pillow>=10.0",
+  "torch>=2.2,<3",
+  "torchvision>=0.17,<1",
+  "open_clip_torch>=2.24,<4",
+  "faiss-cpu>=1.8,<2; platform_system != 'Windows'",
+  "pillow>=10.0,<13",
 ]
 analysis = [
-  "matplotlib>=3.8",
-  "pandas>=2.2",
-  "scipy>=1.12",
-  "seaborn>=0.13",
+  "matplotlib>=3.8,<4",
+  "pandas>=2.2,<4",
+  "scipy>=1.12,<2",
+  "seaborn>=0.13,<1",
+  "psutil>=5.9,<8",
+  "tqdm>=4.66,<5",
 ]
 dev = [
   "pytest>=8.0",
@@ -41,6 +43,7 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 addopts = "-q"
+pythonpath = ["src"]
 testpaths = ["tests"]
 
 [tool.ruff]
@@ -49,4 +52,3 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]
-

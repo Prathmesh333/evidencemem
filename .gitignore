@@ -1,6 +1,8 @@
 __pycache__/
 *.py[cod]
 *.egg-info/
+build/
+dist/
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
@@ -38,4 +40,3 @@ paper/*.pdf
 .vscode/
 .DS_Store
 Thumbs.db
-

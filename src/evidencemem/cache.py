@@ -16,13 +16,19 @@ from .utils import FloatArray, as_float_matrix
 
 @dataclass(frozen=True, slots=True)
 class EmbeddingCacheManifest:
+    schema_version: int
     dataset: str
     split: str
     model_name: str
     pretrained: str
+    preprocess_fingerprint: str
+    source_revision: str
     sample_count: int
     dimension: int
+    dtype: str
     normalized: bool
+    embeddings_sha256: str
+    labels_sha256: str
     sample_ids_sha256: str
 
 
@@ -40,6 +46,16 @@ def hash_sample_ids(sample_ids: ArrayLike) -> str:
     return hashlib.sha256(joined).hexdigest()
 
 
+def hash_array(values: ArrayLike) -> str:
+    """Hash an array's dtype, shape, and contiguous byte representation."""
+    array = np.ascontiguousarray(np.asarray(values))
+    digest = hashlib.sha256()
+    digest.update(str(array.dtype).encode("utf-8"))
+    digest.update(str(array.shape).encode("utf-8"))
+    digest.update(array.tobytes())
+    return digest.hexdigest()
+
+
 def save_embedding_cache(
     path: str | Path,
     embeddings: ArrayLike,
@@ -50,6 +66,8 @@ def save_embedding_cache(
     split: str,
     model_name: str,
     pretrained: str,
+    preprocess_fingerprint: str = "unspecified",
+    source_revision: str = "unknown",
 ) -> EmbeddingCacheManifest:
     """Atomically write an embedding archive and adjacent JSON manifest."""
     destination = Path(path)
@@ -63,13 +81,19 @@ def save_embedding_cache(
     norms = np.linalg.norm(matrix, axis=1)
     normalized = bool(np.allclose(norms, 1.0, atol=1e-4))
     manifest = EmbeddingCacheManifest(
+        schema_version=2,
         dataset=dataset,
         split=split,
         model_name=model_name,
         pretrained=pretrained,
+        preprocess_fingerprint=preprocess_fingerprint,
+        source_revision=source_revision,
         sample_count=int(matrix.shape[0]),
         dimension=int(matrix.shape[1]),
+        dtype=str(matrix.dtype),
         normalized=normalized,
+        embeddings_sha256=hash_array(matrix),
+        labels_sha256=hash_array(label_array),
         sample_ids_sha256=hash_sample_ids(id_array),
     )
 
@@ -95,6 +119,8 @@ def load_embedding_cache(path: str | Path, *, require_normalized: bool = True) -
     manifest_data: dict[str, Any] = json.loads(
         source.with_suffix(".json").read_text(encoding="utf-8")
     )
+    if manifest_data.get("schema_version") != 2:
+        raise ValueError("unsupported embedding cache manifest; regenerate the cache")
     manifest = EmbeddingCacheManifest(**manifest_data)
     with np.load(source, allow_pickle=False) as archive:
         matrix = as_float_matrix(archive["embeddings"], name="cached embeddings")
@@ -107,6 +133,12 @@ def load_embedding_cache(path: str | Path, *, require_normalized: bool = True) -
         raise ValueError("cache labels or sample_ids do not match its manifest")
     if hash_sample_ids(sample_ids) != manifest.sample_ids_sha256:
         raise ValueError("sample_ids hash does not match the cache manifest")
+    if hash_array(matrix) != manifest.embeddings_sha256:
+        raise ValueError("embedding hash does not match the cache manifest")
+    if hash_array(labels) != manifest.labels_sha256:
+        raise ValueError("label hash does not match the cache manifest")
+    if str(matrix.dtype) != manifest.dtype:
+        raise ValueError("embedding dtype does not match the cache manifest")
     if require_normalized and not manifest.normalized:
         raise ValueError("embedding cache is not L2-normalized")
     return EmbeddingCache(matrix, labels, sample_ids, manifest)

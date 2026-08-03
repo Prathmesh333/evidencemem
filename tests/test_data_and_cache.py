@@ -1,6 +1,7 @@
 import json
 
 import numpy as np
+import pytest
 
 from evidencemem.cache import load_embedding_cache, save_embedding_cache
 from evidencemem.data import save_split, stratified_train_validation_indices
@@ -51,3 +52,30 @@ def test_embedding_cache_round_trip(tmp_path) -> None:
     assert np.array_equal(restored.embeddings, embeddings)
     assert np.array_equal(restored.labels, labels)
     assert restored.sample_ids.tolist() == ["a", "b", "c"]
+
+
+def test_embedding_cache_rejects_tampered_arrays(tmp_path) -> None:
+    path = tmp_path / "train.npz"
+    embeddings = np.eye(2, dtype=np.float32)
+    labels = np.array([0, 1], dtype=np.int64)
+    sample_ids = np.array(["a", "b"])
+    save_embedding_cache(
+        path,
+        embeddings,
+        labels,
+        sample_ids,
+        dataset="toy",
+        split="train",
+        model_name="mock",
+        pretrained="none",
+    )
+
+    np.savez_compressed(
+        path,
+        embeddings=np.flipud(embeddings),
+        labels=labels,
+        sample_ids=sample_ids,
+    )
+
+    with pytest.raises(ValueError, match="embedding hash"):
+        load_embedding_cache(path)
