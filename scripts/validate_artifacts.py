@@ -35,6 +35,11 @@ def main() -> None:
         "run finalization": "finalize_run_manifest(",
         "private repository authentication": "get_github_token()",
         "Kaggle runtime path": 'Path("/kaggle/working")',
+        "same-kernel source activation": "sys.path.insert(0, source_path)",
+        "bootstrap package self-test": "Bootstrap verified: EvidenceMem",
+        "stale checkout refresh": '"fetch", "--depth", "1", "origin"',
+        "stale module eviction": 'module_name.startswith("evidencemem.")',
+        "source-isolated memory cache": "|{SOURCE_ID}|",
     }
     missing = [name for name, marker in requirements.items() if marker not in joined]
     if missing:
