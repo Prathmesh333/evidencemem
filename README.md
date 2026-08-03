@@ -56,6 +56,23 @@ python -m pip install -e .[vision,dev]
 The current machine has a 4 GB GTX 1650. Experiments therefore extract CLIP
 embeddings once, cache them, and reuse them across seeds and ablations.
 
+## Google Colab T4 experiment notebook
+
+The self-contained notebook runs the classification baselines, validation-only
+fusion and calibration selection, equal-budget memory curves, reliability
+ablations, near/far OOD rejection, class insertion, evidence Precision@k,
+qualitative retrievals, noise robustness, paired tests, and claim-level go/no-go
+checks:
+
+[Open EvidenceMem in Google Colab](https://colab.research.google.com/github/Prathmesh333/evidencemem/blob/main/notebooks/EvidenceMem_Colab_T4.ipynb)
+
+Choose a T4 GPU, run the default `RUN_MODE = "validation"` end to end, and only
+then switch to `RUN_MODE = "paper"`. Paper mode uses the full CIFAR-10 split,
+three seeds, a wider memory grid, the supervised ResNet-18 reference, and the
+secondary CIFAR-100 classification experiment. Because the repository is
+private, Colab may ask you to authorize GitHub access; alternatively upload the
+notebook directly to Colab.
+
 ## Project layout
 
 ```text
@@ -63,6 +80,7 @@ configs/                 Reproducible experiment settings
 docs/                    Research plan, literature map, and compute budget
 paper/                   Workshop-paper outline and later LaTeX sources
 scripts/                 Reproduction and smoke-test entry points
+notebooks/               Self-contained Colab T4 experiment suite
 src/evidencemem/         Memory, index, classifier, and confidence code
 tests/                   Fast synthetic unit tests
 outputs/                 Generated artifacts (large files are gitignored)
@@ -76,6 +94,7 @@ outputs/                 Generated artifacts (large files are gitignored)
 - [x] Prototype schema and adaptive memory core
 - [x] Visual-text classifier and confidence interface
 - [x] CLIP extraction entry point, deterministic splits, and cache manifests
+- [x] Self-contained Colab T4 validation and three-seed paper notebook
 - [ ] Download OpenCLIP weights and run the measured 512-image pre-flight
 - [ ] Baselines and memory-budget study
 - [ ] OOD and continual-class experiments
