@@ -75,10 +75,10 @@ outputs/                 Generated artifacts (large files are gitignored)
 - [x] Exact cosine/FAISS index abstraction
 - [x] Prototype schema and adaptive memory core
 - [x] Visual-text classifier and confidence interface
-- [ ] CLIP embedding extraction and deterministic CIFAR splits
+- [x] CLIP extraction entry point, deterministic splits, and cache manifests
+- [ ] Download OpenCLIP weights and run the measured 512-image pre-flight
 - [ ] Baselines and memory-budget study
 - [ ] OOD and continual-class experiments
 - [ ] Three-seed ablations and workshop paper
 
 See [docs/RESEARCH_PLAN.md](docs/RESEARCH_PLAN.md) for the scientific plan.
-
