@@ -1,0 +1,41 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+
+# Research artifacts: keep manifests and summaries, not large generated data.
+data/raw/
+data/processed/
+outputs/embeddings/
+outputs/indices/
+outputs/checkpoints/
+outputs/logs/
+outputs/metrics/*.jsonl
+outputs/figures/*.png
+outputs/figures/*.pdf
+
+# Paper build artifacts.
+paper/*.aux
+paper/*.bbl
+paper/*.blg
+paper/*.fdb_latexmk
+paper/*.fls
+paper/*.log
+paper/*.out
+paper/*.pdf
+
+# Editors and operating systems.
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+

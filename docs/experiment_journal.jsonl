@@ -1,0 +1,2 @@
+{"id":"exp_000","parent":null,"status":"planned","hypothesis":"Reliability-aware class medoids improve the accuracy-memory trade-off over random exemplars and plain medoids.","plan":"Implement and validate the synthetic core, then run a 1,000-embedding CIFAR-10 pilot at 1, 5, 10, and 20 prototypes per class.","result_path":"outputs/metrics/exp_000","next_steps":["validate CLIP cache manifest","compare random, medoid, and reliability-aware variants","decide whether the full EvidenceMem story clears the go/no-go checkpoint"]}
+
