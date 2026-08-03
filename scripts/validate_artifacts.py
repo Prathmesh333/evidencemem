@@ -33,6 +33,8 @@ def main() -> None:
         "matched cache baseline": "tip_adapter_scores(",
         "tamper-evident embedding cache": "save_embedding_cache(",
         "run finalization": "finalize_run_manifest(",
+        "private repository authentication": "get_github_token()",
+        "Kaggle runtime path": 'Path("/kaggle/working")',
     }
     missing = [name for name, marker in requirements.items() if marker not in joined]
     if missing:
