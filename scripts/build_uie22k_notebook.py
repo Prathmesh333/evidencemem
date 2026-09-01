@@ -2470,22 +2470,29 @@ cells = [
             )
 
         expected_classification_rows = (
-            len(CFG.resolutions) * len(CFG.seeds) * 11
+            len(CFG.resolutions) * len(CFG.seeds) * N_CLASSES
+        )
+        expected_split_counts = {
+            "train": CFG.train_per_class,
+            "val": CFG.val_per_class,
+            "test": CFG.test_per_class,
+        }
+        observed_split_counts = (
+            manifest_df.groupby(["label", "split"]).size().unstack(fill_value=0)
+        )
+        manifest_balanced = (
+            set(observed_split_counts.index) == set(CLASS_NAMES)
+            and set(observed_split_counts.columns) == set(expected_split_counts)
+            and all(
+                int(observed_split_counts.at[class_name, split_name])
+                == expected_count
+                for class_name in CLASS_NAMES
+                for split_name, expected_count in expected_split_counts.items()
+            )
         )
         integrity_checks = {
             "paper_mode": CFG.mode == "paper",
-            "manifest_balanced": bool(
-                (
-                    manifest_df.groupby(["label", "split"]).size().unstack()
-                    == pd.Series(
-                        {
-                            "train": CFG.train_per_class,
-                            "val": CFG.val_per_class,
-                            "test": CFG.test_per_class,
-                        }
-                    )
-                ).all().all()
-            ),
+            "manifest_balanced": bool(manifest_balanced),
             "manifest_has_no_exact_duplicates": not bool(
                 manifest_df["sha256"].duplicated().any()
             ),
