@@ -1,8 +1,4 @@
-"""Build the self-contained Kaggle UIE-22K EvidenceMem notebook.
-
-The generated notebook is intentionally derived from the hosted v3 notebook while
-keeping dataset-specific code separate from the CIFAR and Oxford-Pets protocol.
-"""
+"""Build the self-contained Kaggle UIE-22K EvidenceMem v4 notebook."""
 
 from __future__ import annotations
 
@@ -10,10 +6,10 @@ import json
 import textwrap
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_NOTEBOOK = ROOT / "notebooks" / "EvidenceMem_Colab_T4.ipynb"
-OUTPUT_NOTEBOOK = ROOT / "notebooks" / "EvidenceMem_UIE22K_Resolution_T4.ipynb"
+OUTPUT_NOTEBOOK = ROOT / "notebooks" / "EvidenceMem_UIE22K_V4_T4.ipynb"
+CELL_DIR = ROOT / "scripts" / "notebook_cells"
 
 
 def source(value: str) -> str:
@@ -38,21 +34,23 @@ def code(value: str, *tags: str) -> dict:
 cells = [
     markdown(
         r'''
-        # EvidenceMem UIE-22K: balanced 224 vs 512 resolution stress test
+        # EvidenceMem v4 UIE-22K: reliable class-conditional visual memory
 
-        This notebook derives the EvidenceMem v3 experiment from
-        `EvidenceMem_Colab_T4.ipynb` and applies it to a fixed, balanced subset of the
-        130k Universal Image Embeddings image collection.
+        This notebook turns the completed 224-vs-512 stress test into the next
+        confirmable EvidenceMem experiment on a fixed, balanced subset of the 130k
+        Universal Image Embeddings image collection.
 
-        **Claim tested.** On the same 22,000 images, splits, frozen encoder family,
-        memory budgets, validation protocol, and random seeds, does processing the
-        source images at 512 pixels change EvidenceMem's classification, evidence
-        quality, calibration, selectivity, or relative advantage over matched
-        prototype-memory baselines?
+        **Claims tested.** Does scale-corrected prototype reliability improve over
+        coverage-only selection at an equal memory count? Does class-conditional
+        scoring reduce salient-object shortcuts? Does continuous reliability-aware
+        visual-text fusion improve accuracy, calibration, and selective risk? Which
+        natively matched frozen encoder gives the strongest result on a T4?
 
-        The notebook does not treat a positive result as guaranteed. It exports all
-        predictions, selected hyperparameters, paired tests, manifests, runtimes, and
-        qualitative evidence needed to report either a positive or a null result.
+        Development and confirmatory evaluation are separated. The default run uses
+        the development split to choose the method and encoder. A final run must set a
+        frozen encoder key and switch to the untouched confirmatory split. All
+        predictions, selected settings, paired tests, calibration summaries,
+        manifests, runtimes, and qualitative evidence are exported.
         '''
     ),
     markdown(
@@ -69,15 +67,19 @@ cells = [
            `rhtsingh/google-universal-image-embedding-convnext-train`; its output
            contains a ConvNeXt checkpoint and logs, not the raw images, so it cannot
            replace the dataset input.
-        4. Use **Run All**. The paper configuration processes 22,000 images at both
-           224 and 512. Cached embeddings make later seed runs inexpensive.
+        4. Use **Run All**. The paper configuration compares native 224, 336, and 384
+           pixel encoders. CUDA out-of-memory errors automatically reduce batch size,
+           and embedding caches make later method runs inexpensive.
 
         The 14 GB input stays read-only under `/kaggle/input`. The notebook hashes at
         most 2,400 candidates per class, keeps exactly 2,000 unique samples per class,
         and never copies the complete dataset into `/kaggle/working`.
 
-        For a short pipeline check, change `RUN_MODE` from `"paper"` to `"smoke"` in
-        the configuration cell. Smoke results are not paper evidence.
+        Start with `EVALUATION_STAGE="development"`. After choosing and recording the
+        final encoder and method, set `EVALUATION_STAGE="confirmatory"` and
+        `CONFIRMATORY_ENCODER_KEY` to the frozen encoder key. Do not use confirmatory
+        results for further tuning. For a quick pipeline check, use `RUN_MODE="smoke"`;
+        smoke results are not paper evidence.
         '''
     ),
     code(
@@ -216,6 +218,7 @@ cells = [
             "scipy": "scipy>=1.11,<2",
             "tqdm": "tqdm>=4.66,<5",
             "psutil": "psutil>=5.9,<8",
+            "transformers": "transformers>=4.50,<6",
             "yaml": "PyYAML>=6,<7",
         }
         def requirement_is_unsatisfied(module, specification):
@@ -273,10 +276,16 @@ cells = [
     ),
     code(
         r'''
-        # Configuration: the paper mode is the predeclared UIE-22K protocol.
+        # Configuration: paper mode is the predeclared EvidenceMem v4 protocol.
         from dataclasses import asdict, dataclass
 
         RUN_MODE = "paper"  # use "smoke" only to verify the pipeline
+        EVALUATION_STAGE = os.environ.get(
+            "EVIDENCEMEM_EVALUATION_STAGE", "development"
+        ).strip().lower()
+        CONFIRMATORY_ENCODER_KEY = os.environ.get(
+            "EVIDENCEMEM_CONFIRMATORY_ENCODER", ""
+        ).strip()
         # Usually leave this empty. Set UIE_DATASET_ROOT only for a custom mount.
         DATASET_ROOT_OVERRIDE = os.environ.get("UIE_DATASET_ROOT", "").strip()
         RAW_DATASET_SLUG = "rhtsingh/130k-images-512x512-universal-image-embeddings"
@@ -288,10 +297,44 @@ cells = [
             "/kaggle/input/notebooks/rhtsingh/"
             "google-universal-image-embedding-convnext-train"
         )
-        PROTOCOL_ID = "uie22k_balanced_resolution_v1"
-        PROTOCOL_REVISION = "1.0.0"
-        OPENCLIP_MODEL = "ViT-B-32-quickgelu"
-        OPENCLIP_WEIGHTS = "openai"
+        PROTOCOL_ID = "uie22k_evidencemem_v4"
+        PROTOCOL_REVISION = "2.0.0"
+
+        PAPER_ENCODERS = (
+            (
+                "clip_b32_224",
+                "open_clip",
+                "ViT-B-32-quickgelu",
+                "openai",
+                224,
+                128,
+            ),
+            (
+                "clip_b16_224",
+                "open_clip",
+                "ViT-B-16-quickgelu",
+                "openai",
+                224,
+                96,
+            ),
+            (
+                "clip_l14_336",
+                "open_clip",
+                "ViT-L-14-336-quickgelu",
+                "openai",
+                336,
+                24,
+            ),
+            (
+                "siglip2_b16_384",
+                "transformers",
+                "google/siglip2-base-patch16-384",
+                "google",
+                384,
+                16,
+            ),
+        )
+        SMOKE_ENCODERS = (PAPER_ENCODERS[0],)
 
         CLASS_NAMES = (
             "apparel",
@@ -320,12 +363,12 @@ cells = [
             "toys": "a toy",
         }
         PROMPTS = (
-            "a photo of {}.",
-            "an image of {}.",
-            "a close-up image of {}.",
-            "a cropped image of {}.",
-            "a clear image of {}.",
-            "a real-world image of {}.",
+            "a photo whose main category is {}.",
+            "a catalog image of {}.",
+            "a real-world image showing {} as the main subject.",
+            "a wide-view image categorized as {}.",
+            "an online image whose visual domain is {}.",
+            "an image of {}, not merely a small foreground object.",
         )
 
 
@@ -337,20 +380,22 @@ cells = [
             candidate_cap_per_class: int
             train_per_class: int
             val_per_class: int
-            test_per_class: int
+            development_per_class: int
+            confirmatory_per_class: int
             phash_distance: int
             hash_workers: int
             seeds: tuple
-            resolutions: tuple
-            resolution_batch_sizes: tuple
+            encoders: tuple
             num_workers: int
             budgets: tuple
             default_budget: int
             topk_grid: tuple
+            class_topk_grid: tuple
             alpha_grid: tuple
             temperatures: tuple
-            reliability_gamma_grid: tuple
-            gate_quantiles: tuple
+            reliability_power_grid: tuple
+            reliability_weight_grid: tuple
+            gate_slope_grid: tuple
 
 
         if RUN_MODE == "paper":
@@ -359,22 +404,33 @@ cells = [
                 sample_seed=2026,
                 samples_per_class=2_000,
                 candidate_cap_per_class=2_400,
-                train_per_class=1_400,
+                train_per_class=1_200,
                 val_per_class=200,
-                test_per_class=400,
+                development_per_class=300,
+                confirmatory_per_class=300,
                 phash_distance=3,
                 hash_workers=8,
                 seeds=(7, 17, 29, 43, 61),
-                resolutions=(224, 512),
-                resolution_batch_sizes=((224, 128), (512, 24)),
-                num_workers=2,
-                budgets=(5, 10, 20),
-                default_budget=20,
-                topk_grid=(5, 10, 20),
+                encoders=PAPER_ENCODERS,
+                num_workers=0,
+                budgets=(20, 40, 80),
+                default_budget=40,
+                topk_grid=(3, 5, 10, 20),
+                class_topk_grid=(1, 3, 5, 10),
                 alpha_grid=(0.0, 0.25, 0.5, 0.75, 1.0),
                 temperatures=(0.02, 0.03, 0.05, 0.07, 0.10, 0.15, 0.20, 0.50, 1.0),
-                reliability_gamma_grid=(0.0, 0.05, 0.10),
-                gate_quantiles=(0.33, 0.67),
+                reliability_power_grid=(0.0, 0.5, 1.0, 2.0),
+                reliability_weight_grid=(
+                    (1.0, 0.0, 0.0),
+                    (0.0, 1.0, 0.0),
+                    (0.0, 0.0, 1.0),
+                    (0.5, 0.5, 0.0),
+                    (0.5, 0.0, 0.5),
+                    (0.0, 0.5, 0.5),
+                    (0.35, 0.40, 0.25),
+                    (0.45, 0.35, 0.20),
+                ),
+                gate_slope_grid=(-0.50, -0.25, 0.0, 0.25, 0.50),
             )
         elif RUN_MODE == "smoke":
             CFG = RunConfig(
@@ -382,32 +438,73 @@ cells = [
                 sample_seed=2026,
                 samples_per_class=20,
                 candidate_cap_per_class=30,
-                train_per_class=14,
+                train_per_class=12,
                 val_per_class=2,
-                test_per_class=4,
+                development_per_class=3,
+                confirmatory_per_class=3,
                 phash_distance=0,
                 hash_workers=4,
                 seeds=(7,),
-                resolutions=(224,),
-                resolution_batch_sizes=((224, 32),),
+                encoders=SMOKE_ENCODERS,
                 num_workers=0,
-                budgets=(1, 2),
+                budgets=(1, 2, 3),
                 default_budget=2,
                 topk_grid=(1, 2),
+                class_topk_grid=(1, 2),
                 alpha_grid=(0.0, 0.5, 1.0),
                 temperatures=(0.05, 0.10, 0.50, 1.0),
-                reliability_gamma_grid=(0.0, 0.05),
-                gate_quantiles=(0.5,),
+                reliability_power_grid=(0.0, 1.0),
+                reliability_weight_grid=((1.0, 0.0, 0.0), (0.35, 0.40, 0.25)),
+                gate_slope_grid=(-0.5, 0.0, 0.5),
             )
         else:
             raise ValueError("RUN_MODE must be 'paper' or 'smoke'.")
 
-        if CFG.train_per_class + CFG.val_per_class + CFG.test_per_class != CFG.samples_per_class:
+        if EVALUATION_STAGE not in {"development", "confirmatory"}:
+            raise ValueError(
+                "EVALUATION_STAGE must be 'development' or 'confirmatory'."
+            )
+        if EVALUATION_STAGE == "confirmatory" and not CONFIRMATORY_ENCODER_KEY:
+            raise ValueError(
+                "Set EVIDENCEMEM_CONFIRMATORY_ENCODER to the frozen development "
+                "winner before a confirmatory run."
+            )
+        if (
+            CFG.train_per_class
+            + CFG.val_per_class
+            + CFG.development_per_class
+            + CFG.confirmatory_per_class
+            != CFG.samples_per_class
+        ):
             raise ValueError("The per-class split sizes must sum to samples_per_class.")
-        BATCH_SIZE_BY_RESOLUTION = dict(CFG.resolution_batch_sizes)
+        ENCODER_SPECS = {
+            item[0]: {
+                "key": item[0],
+                "backend": item[1],
+                "model": item[2],
+                "weights": item[3],
+                "resolution": int(item[4]),
+                "batch_size": int(item[5]),
+            }
+            for item in CFG.encoders
+        }
+        if EVALUATION_STAGE == "confirmatory":
+            if CONFIRMATORY_ENCODER_KEY not in ENCODER_SPECS:
+                raise ValueError(
+                    f"Unknown confirmatory encoder {CONFIRMATORY_ENCODER_KEY!r}; "
+                    f"choose one of {sorted(ENCODER_SPECS)}."
+                )
+            ENCODER_SPECS = {
+                CONFIRMATORY_ENCODER_KEY: ENCODER_SPECS[CONFIRMATORY_ENCODER_KEY]
+            }
+        EVALUATION_SPLIT = (
+            "development" if EVALUATION_STAGE == "development" else "confirmatory"
+        )
         CLASS_TO_ID = {name: index for index, name in enumerate(CLASS_NAMES)}
         N_CLASSES = len(CLASS_NAMES)
         print(asdict(CFG))
+        print("Evaluation stage:", EVALUATION_STAGE)
+        print("Encoders:", sorted(ENCODER_SPECS))
         print("Total retained images:", CFG.samples_per_class * N_CLASSES)
         ''',
         "parameters",
@@ -440,7 +537,7 @@ cells = [
         import torchvision
         from IPython.display import display
         from PIL import Image, ImageFile
-        from evidencemem import SelectionConfig
+        from evidencemem import ReliabilityWeights, SelectionConfig
         from evidencemem.artifacts import (
             atomic_write_json,
             finalize_run_manifest,
@@ -449,9 +546,12 @@ cells = [
         )
         from evidencemem.benchmark import (
             PrototypeArrays,
+            class_conditional_visual_scores,
             exact_search,
             fit_prototype_memory,
             fused_class_scores,
+            reweight_prototype_reliability,
+            text_class_scores,
             tip_adapter_scores,
             weighted_knn_scores,
         )
@@ -513,7 +613,9 @@ cells = [
         ).strip()
         ROOT = RUNTIME_ROOT / "EvidenceMem"
         CACHE_DIR = ROOT / "cache" / PROTOCOL_ID
-        RUN_DIR = ROOT / "runs" / f"{CFG.mode}_{PROTOCOL_ID}_{SOURCE_ID}"
+        RUN_DIR = ROOT / "runs" / (
+            f"{CFG.mode}_{EVALUATION_STAGE}_{PROTOCOL_ID}_{SOURCE_ID}"
+        )
         for directory in (CACHE_DIR, RUN_DIR):
             directory.mkdir(parents=True, exist_ok=True)
 
@@ -538,14 +640,15 @@ cells = [
             "faiss": getattr(faiss, "__version__", "unknown"),
             "cpu_count": psutil.cpu_count(),
             "ram_gb": round(psutil.virtual_memory().total / 2**30, 2),
-            "openclip_model": OPENCLIP_MODEL,
-            "openclip_weights": OPENCLIP_WEIGHTS,
+            "evaluation_stage": EVALUATION_STAGE,
+            "evaluation_split": EVALUATION_SPLIT,
+            "encoder_specs": ENCODER_SPECS,
         }
         RUN_MANIFEST = start_run_manifest(
             config=asdict(CFG),
             repository=REPO_DIR,
-            model_name=OPENCLIP_MODEL,
-            pretrained=OPENCLIP_WEIGHTS,
+            model_name=",".join(sorted(ENCODER_SPECS)),
+            pretrained="frozen pretrained checkpoints",
         )
         atomic_write_json(RUN_DIR / "run_manifest.json", RUN_MANIFEST)
         atomic_json(RUN_DIR / "environment.json", environment)
@@ -564,10 +667,11 @@ cells = [
         duplicates, and clusters perceptual hashes within Hamming distance three.
         One representative remains from each perceptual cluster.
 
-        Exactly 2,000 unique samples per class are then assigned to 1,400 train, 200
-        validation, and 400 test examples. The resulting CSV manifest is immutable
-        input to every resolution and method. Validation, never test, selects all
-        hyperparameters.
+        Exactly 2,000 unique samples per class are then assigned to 1,200 train, 200
+        validation, 300 development, and 300 confirmatory examples. The resulting CSV
+        manifest is immutable input to every encoder and method. Validation selects
+        method settings; development selects one encoder; confirmatory data is opened
+        only after that encoder is frozen.
         '''
     ),
     code(
@@ -816,7 +920,8 @@ cells = [
             expected = {
                 "train": CFG.train_per_class,
                 "val": CFG.val_per_class,
-                "test": CFG.test_per_class,
+                "development": CFG.development_per_class,
+                "confirmatory": CFG.confirmatory_per_class,
             }
             counts = frame.groupby(["label", "split"]).size()
             for class_name in CLASS_NAMES:
@@ -952,16 +1057,18 @@ cells = [
                 split_values = np.empty(len(selected), dtype=object)
                 train_end = CFG.train_per_class
                 val_end = train_end + CFG.val_per_class
+                development_end = val_end + CFG.development_per_class
                 split_values[split_order[:train_end]] = "train"
                 split_values[split_order[train_end:val_end]] = "val"
-                split_values[split_order[val_end:]] = "test"
+                split_values[split_order[val_end:development_end]] = "development"
+                split_values[split_order[development_end:]] = "confirmatory"
                 selected["split"] = split_values
                 selected_parts.append(selected)
 
             manifest = pd.concat(selected_parts, ignore_index=True)
             manifest["sample_id"] = manifest["sha256"]
             manifest["_split_order"] = manifest["split"].map(
-                {"train": 0, "val": 1, "test": 2}
+                {"train": 0, "val": 1, "development": 2, "confirmatory": 3}
             )
             manifest = manifest.sort_values(
                 ["_split_order", "label_id", "relative_path"], kind="stable"
@@ -1023,7 +1130,7 @@ cells = [
     ),
     code(
         r'''
-        # Dataset wrapper keeps sample order identical across resolutions and methods.
+        # Dataset wrapper keeps sample order identical across encoders and methods.
         class ManifestImageDataset(Dataset):
             def __init__(self, frame, dataset_root, transform):
                 self.frame = frame.reset_index(drop=True).copy()
@@ -1050,13 +1157,14 @@ cells = [
             split_name: manifest_df[manifest_df["split"] == split_name]
             .sort_values(["label_id", "relative_path"], kind="stable")
             .reset_index(drop=True)
-            for split_name in ("train", "val", "test")
+            for split_name in ("train", "val", "development", "confirmatory")
         }
         for split_name, frame in SPLIT_FRAMES.items():
             expected = {
                 "train": CFG.train_per_class * N_CLASSES,
                 "val": CFG.val_per_class * N_CLASSES,
-                "test": CFG.test_per_class * N_CLASSES,
+                "development": CFG.development_per_class * N_CLASSES,
+                "confirmatory": CFG.confirmatory_per_class * N_CLASSES,
             }[split_name]
             if len(frame) != expected:
                 raise AssertionError(f"Unexpected {split_name} size: {len(frame)} != {expected}")
@@ -1066,92 +1174,147 @@ cells = [
     ),
     markdown(
         r'''
-        ## 2. Frozen OpenCLIP embeddings at 224 and 512
+        ## 2. Frozen native-resolution encoder sweep
 
-        The 224 condition uses the pretrained model's native input size. The 512
-        condition uses OpenCLIP's `force_image_size`, which interpolates the pretrained
-        positional embedding; it is therefore an inference-resolution stress test, not
-        a claim that the model was pretrained natively at 512. Every embedding cache is
-        keyed by the immutable manifest, resolution, model, weights, preprocessing, and
-        source revision.
+        The completed stress test showed that forcing the 224px ViT-B/32 checkpoint to
+        512px hurt every method. This experiment instead compares checkpoints at their
+        native resolutions: OpenAI CLIP B/32 and B/16 at 224, CLIP L/14 at 336, and
+        SigLIP 2 B/16 at 384. Each encoder is loaded, evaluated, and released before the
+        next one is created so the sweep fits on a single T4. Caches are keyed by the
+        immutable manifest, encoder identity, split, preprocessing contract, and source
+        revision.
         '''
     ),
     code(
         r'''
         import open_clip
+        from transformers import AutoModel, AutoProcessor
 
-        if OPENCLIP_MODEL not in set(open_clip.list_models()):
-            raise RuntimeError(f"OpenCLIP does not provide model {OPENCLIP_MODEL!r}")
-        if (OPENCLIP_MODEL, OPENCLIP_WEIGHTS) not in set(open_clip.list_pretrained()):
-            raise RuntimeError(
-                f"OpenCLIP does not provide weights {OPENCLIP_WEIGHTS!r} "
-                f"for {OPENCLIP_MODEL!r}"
-            )
-        tokenizer = open_clip.get_tokenizer(OPENCLIP_MODEL)
+        OPENCLIP_MODELS = set(open_clip.list_models())
+        OPENCLIP_PRETRAINED = set(open_clip.list_pretrained())
 
 
-        def encoder_for_resolution(resolution):
-            kwargs = {}
-            if int(resolution) != 224:
-                kwargs["force_image_size"] = int(resolution)
-            model, _, preprocess = open_clip.create_model_and_transforms(
-                OPENCLIP_MODEL,
-                pretrained=OPENCLIP_WEIGHTS,
-                device=DEVICE,
-                **kwargs,
-            )
-            model.eval().requires_grad_(False)
-            configured = getattr(model.visual, "image_size", resolution)
-            if isinstance(configured, (tuple, list)):
-                configured = configured[0]
-            if int(configured) != int(resolution):
-                raise RuntimeError(
-                    f"Requested resolution {resolution}, but model reports image size {configured}."
+        def load_encoder(spec):
+            if spec["backend"] == "open_clip":
+                if spec["model"] not in OPENCLIP_MODELS:
+                    raise RuntimeError(
+                        f"OpenCLIP does not provide model {spec['model']!r}."
+                    )
+                if (spec["model"], spec["weights"]) not in OPENCLIP_PRETRAINED:
+                    raise RuntimeError(
+                        f"OpenCLIP does not provide {spec['weights']!r} weights "
+                        f"for {spec['model']!r}."
+                    )
+                model, _, preprocess = open_clip.create_model_and_transforms(
+                    spec["model"], pretrained=spec["weights"], device=DEVICE
                 )
-            return model, preprocess
+                model.eval().requires_grad_(False)
+                configured = getattr(model.visual, "image_size", spec["resolution"])
+                if isinstance(configured, (tuple, list)):
+                    configured = configured[0]
+                if int(configured) != int(spec["resolution"]):
+                    raise RuntimeError(
+                        f"Encoder {spec['key']} reports image size {configured}, "
+                        f"expected {spec['resolution']}."
+                    )
+                tokenizer = open_clip.get_tokenizer(spec["model"])
+
+                def encode_images(images):
+                    return model.encode_image(images)
+
+                def encode_texts(texts):
+                    return model.encode_text(tokenizer(texts).to(DEVICE))
+
+                return {
+                    "model": model,
+                    "preprocess": preprocess,
+                    "encode_images": encode_images,
+                    "encode_texts": encode_texts,
+                }
+
+            if spec["backend"] == "transformers":
+                processor = AutoProcessor.from_pretrained(spec["model"])
+                try:
+                    model = AutoModel.from_pretrained(
+                        spec["model"], dtype=torch.float16
+                    )
+                except TypeError:
+                    model = AutoModel.from_pretrained(
+                        spec["model"], torch_dtype=torch.float16
+                    )
+                model = model.to(DEVICE).eval().requires_grad_(False)
+
+                def preprocess(image):
+                    return processor(images=image, return_tensors="pt")[
+                        "pixel_values"
+                    ][0]
+
+                def encode_images(images):
+                    return model.get_image_features(pixel_values=images)
+
+                def encode_texts(texts):
+                    inputs = processor(
+                        text=texts,
+                        padding="max_length",
+                        truncation=True,
+                        return_tensors="pt",
+                    )
+                    text_inputs = {
+                        key: value.to(DEVICE)
+                        for key, value in inputs.items()
+                        if key in {"input_ids", "attention_mask", "position_ids"}
+                    }
+                    return model.get_text_features(**text_inputs)
+
+                return {
+                    "model": model,
+                    "processor": processor,
+                    "preprocess": preprocess,
+                    "encode_images": encode_images,
+                    "encode_texts": encode_texts,
+                }
+            raise ValueError(f"Unknown encoder backend: {spec['backend']}")
 
 
-        def encode_text_prototypes(model):
+        def encode_text_prototypes(adapter):
             vectors = []
             with torch.inference_mode():
                 for class_name in CLASS_NAMES:
                     prompt_name = CLASS_PROMPT_NAMES[class_name]
-                    tokens = tokenizer(
-                        [template.format(prompt_name) for template in PROMPTS]
-                    ).to(DEVICE)
+                    texts = [template.format(prompt_name) for template in PROMPTS]
                     with torch.autocast(device_type="cuda", dtype=torch.float16):
-                        encoded = model.encode_text(tokens)
+                        encoded = adapter["encode_texts"](texts)
                     encoded = F.normalize(encoded.float(), dim=-1)
                     vectors.append(F.normalize(encoded.mean(0), dim=0).cpu().numpy())
             return normalize(np.stack(vectors))
 
 
-        def embedding_cache_path(split_name, resolution, preprocess):
+        def embedding_cache_path(split_name, spec):
             ids = SPLIT_FRAMES[split_name]["sample_id"].astype(str).tolist()
             payload = {
                 "split": split_name,
                 "sample_ids_sha256": hashlib.sha256("\0".join(ids).encode()).hexdigest(),
                 "manifest_id": MANIFEST_ID,
-                "resolution": int(resolution),
-                "model": OPENCLIP_MODEL,
-                "weights": OPENCLIP_WEIGHTS,
-                "preprocess": hashlib.sha256(repr(preprocess).encode()).hexdigest(),
+                "encoder": spec,
+                "preprocess_contract": "native_pretrained_eval_v1",
                 "source_id": SOURCE_ID,
             }
             key = hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()[:16]
-            return CACHE_DIR / f"uie22k_{split_name}_r{resolution}_{key}.npz"
+            return CACHE_DIR / f"uie22k_{split_name}_{spec['key']}_{key}.npz"
 
 
-        def encode_split(model, preprocess, split_name, resolution):
+        def encode_split(adapter, spec, split_name):
             frame = SPLIT_FRAMES[split_name]
-            path = embedding_cache_path(split_name, resolution, preprocess)
+            path = embedding_cache_path(split_name, spec)
             expected_ids = frame["sample_id"].astype(str).to_numpy()
             if path.is_file() and path.with_suffix(".json").is_file():
                 cached = load_embedding_cache(path)
                 if not np.array_equal(cached.sample_ids.astype(str), expected_ids):
                     raise ValueError("Cached sample IDs do not match the fixed manifest.")
                 return cached.embeddings, cached.labels, {
-                    "resolution": int(resolution),
+                    "encoder_key": spec["key"],
+                    "backend": spec["backend"],
+                    "resolution": int(spec["resolution"]),
                     "split": split_name,
                     "cache_hit": True,
                     "seconds": 0.0,
@@ -1160,8 +1323,10 @@ cells = [
                     "batch_size": None,
                 }
 
-            dataset = ManifestImageDataset(frame, DATASET_ROOT, preprocess)
-            batch_size = int(BATCH_SIZE_BY_RESOLUTION[int(resolution)])
+            dataset = ManifestImageDataset(
+                frame, DATASET_ROOT, adapter["preprocess"]
+            )
+            batch_size = int(spec["batch_size"])
             while True:
                 loader = DataLoader(
                     dataset,
@@ -1179,11 +1344,11 @@ cells = [
                 try:
                     with torch.inference_mode():
                         for images, batch_labels in tqdm(
-                            loader, desc=f"CLIP r{resolution}: {split_name}"
+                            loader, desc=f"{spec['key']}: {split_name}"
                         ):
                             images = images.to(DEVICE, non_blocking=True)
                             with torch.autocast(device_type="cuda", dtype=torch.float16):
-                                batch_embeddings = model.encode_image(images)
+                                batch_embeddings = adapter["encode_images"](images)
                             embeddings.append(
                                 F.normalize(batch_embeddings.float(), dim=-1).cpu().numpy()
                             )
@@ -1195,13 +1360,17 @@ cells = [
                     if "out of memory" not in str(error).lower() or batch_size == 1:
                         raise
                     batch_size = max(1, batch_size // 2)
-                    print(f"CUDA OOM; retrying resolution {resolution} with batch {batch_size}.")
+                    print(
+                        f"CUDA OOM; retrying {spec['key']} with batch {batch_size}."
+                    )
                     del loader, embeddings, labels
                     torch.cuda.empty_cache()
 
             matrix = normalize(np.concatenate(embeddings))
             label_array = np.concatenate(labels).astype(np.int64)
-            preprocess_fingerprint = hashlib.sha256(repr(preprocess).encode()).hexdigest()
+            preprocess_fingerprint = hashlib.sha256(
+                json.dumps(spec, sort_keys=True).encode()
+            ).hexdigest()
             save_embedding_cache(
                 path,
                 matrix.astype(np.float32),
@@ -1209,13 +1378,15 @@ cells = [
                 expected_ids,
                 dataset="UIE-22K",
                 split=split_name,
-                model_name=f"{OPENCLIP_MODEL}@{resolution}",
-                pretrained=OPENCLIP_WEIGHTS,
+                model_name=spec["model"],
+                pretrained=spec["weights"],
                 preprocess_fingerprint=preprocess_fingerprint,
                 source_revision=git_revision(REPO_DIR),
             )
             runtime = {
-                "resolution": int(resolution),
+                "encoder_key": spec["key"],
+                "backend": spec["backend"],
+                "resolution": int(spec["resolution"]),
                 "split": split_name,
                 "cache_hit": False,
                 "seconds": float(elapsed),
@@ -1226,40 +1397,44 @@ cells = [
             return matrix, label_array, runtime
 
 
-        RESOLUTION_DATA = {}
+        ENCODER_DATA = {}
         encoder_runtime_rows = []
-        for resolution in CFG.resolutions:
+        for encoder_key, spec in ENCODER_SPECS.items():
             seed_everything(CFG.sample_seed)
-            model, preprocess = encoder_for_resolution(resolution)
-            if resolution != 224:
-                print(
-                    f"Resolution {resolution}: pretrained 224 positional embeddings are "
-                    "interpolated by OpenCLIP."
-                )
-            text_prototypes = encode_text_prototypes(model)
+            adapter = load_encoder(spec)
+            text_prototypes = encode_text_prototypes(adapter)
             split_data = {}
-            for split_name in ("train", "val", "test"):
-                matrix, labels, runtime = encode_split(
-                    model, preprocess, split_name, resolution
-                )
+            for split_name in ("train", "val", EVALUATION_SPLIT):
+                matrix, labels, runtime = encode_split(adapter, spec, split_name)
                 split_data[split_name] = (matrix, labels)
                 encoder_runtime_rows.append(runtime)
             split_data["text_prototypes"] = text_prototypes
-            RESOLUTION_DATA[int(resolution)] = split_data
-            del model
+            split_data["spec"] = dict(spec)
+            ENCODER_DATA[encoder_key] = split_data
+            del adapter
             torch.cuda.empty_cache()
 
         encoder_runtime_df = pd.DataFrame(encoder_runtime_rows)
         atomic_csv(encoder_runtime_df, RUN_DIR / "encoder_runtime.csv")
-        for resolution, data in RESOLUTION_DATA.items():
+        for encoder_key, data in ENCODER_DATA.items():
             train_x, train_y = data["train"]
             val_x, val_y = data["val"]
-            test_x, test_y = data["test"]
+            evaluation_x, evaluation_y = data[EVALUATION_SPLIT]
             assert train_x.shape[0] == CFG.train_per_class * N_CLASSES
             assert val_x.shape[0] == CFG.val_per_class * N_CLASSES
-            assert test_x.shape[0] == CFG.test_per_class * N_CLASSES
+            expected_evaluation = (
+                CFG.development_per_class
+                if EVALUATION_SPLIT == "development"
+                else CFG.confirmatory_per_class
+            ) * N_CLASSES
+            assert evaluation_x.shape[0] == expected_evaluation
             assert np.allclose(np.linalg.norm(train_x[:100], axis=1), 1.0, atol=2e-3)
-            print(resolution, train_x.shape, val_x.shape, test_x.shape)
+            print(
+                encoder_key,
+                train_x.shape,
+                val_x.shape,
+                evaluation_x.shape,
+            )
         journal("embeddings_ready", runtimes=encoder_runtime_rows)
         display(encoder_runtime_df)
         ''',
@@ -1267,13 +1442,15 @@ cells = [
     ),
     markdown(
         r'''
-        ## 3. EvidenceMem v3 and matched baselines
+        ## 3. EvidenceMem v4 and matched baselines
 
-        Prototype construction remains identical to the old notebook. Coverage selects
-        real-image medoids. Compactness, neighborhood purity, and text alignment form
-        prototype reliability. At query time, reliability reranks evidence and controls
-        an adaptive visual/text gate. Every memory baseline stores the same number of
-        examples per class and is tuned independently on validation data.
+        EvidenceMem v4 starts from the exact same facility-selected real-image medoids
+        as the matched coverage baseline. It maps cosine compactness and text alignment
+        from `[-1, 1]` to `[0, 1]`, keeps purity on `[0, 1]`, excludes missing alignment
+        from the active denominator, and tunes component weights on validation data.
+        The scorer compares an equal top-k set inside every class using log-mean-exp.
+        Fixed and continuous reliability-conditioned visual-text fusion are reported
+        separately, together with a global-scoring ablation.
         '''
     ),
     code(
@@ -1330,18 +1507,19 @@ cells = [
             return arrays_to_memory(arrays)
 
 
-        def memory_file(resolution, method, budget, seed, count):
+        def memory_file(encoder_key, method, budget, seed, count):
             selection_id = hashlib.sha256(str(SELECTION_CONFIG).encode()).hexdigest()[:8]
             return CACHE_DIR / (
-                f"memory_uie_v3_{MANIFEST_ID[:10]}_r{resolution}_{method}_"
+                f"memory_uie_v4_{MANIFEST_ID[:10]}_{SOURCE_ID[:10]}_"
+                f"{encoder_key}_{method}_"
                 f"b{budget}_s{seed}_n{count}_{selection_id}.npz"
             )
 
 
         def fit_or_load_memory(
-            x, y, budget, method, seed, resolution, text_prototypes
+            x, y, budget, method, seed, encoder_key, text_prototypes
         ):
-            path = memory_file(resolution, method, budget, seed, len(x))
+            path = memory_file(encoder_key, method, budget, seed, len(x))
             if path.is_file():
                 return arrays_to_memory(PrototypeArrays.load(path))
             memory = fit_memory(x, y, budget, method, seed, text_prototypes)
@@ -1349,31 +1527,41 @@ cells = [
             return memory
 
 
-        def copy_with_reliability(memory, weights):
-            result = dict(memory)
-            raw = sum(
-                float(weights.get(name, 0.0))
-                * np.nan_to_num(np.asarray(memory[name]), nan=0.5)
-                for name in ("compactness", "purity", "alignment")
+        def reliability_weights(values):
+            compactness, purity, alignment = (float(value) for value in values)
+            return ReliabilityWeights(
+                compactness=compactness,
+                purity=purity,
+                text_alignment=alignment,
             )
-            result["reliability"] = np.clip(raw, 0.05, 1.0).astype(np.float32)
-            return result
 
 
-        def fit_v3_memory(x, y, budget, seed, resolution, text_prototypes):
+        def fit_v4_memory(
+            x,
+            y,
+            budget,
+            seed,
+            encoder_key,
+            text_prototypes,
+            weight_values,
+        ):
             coverage = fit_or_load_memory(
                 x,
                 y,
                 budget,
                 "facility_no_reliability",
                 seed,
-                resolution,
+                encoder_key,
                 text_prototypes,
             )
-            return copy_with_reliability(
-                coverage,
-                {"compactness": 0.35, "purity": 0.40, "alignment": 0.25},
+            arrays = reweight_prototype_reliability(
+                memory_to_arrays(coverage),
+                reliability_weights(weight_values),
+                minimum=0.05,
             )
+            result = arrays_to_memory(arrays)
+            result["method"] = "evidencemem_v4"
+            return result
 
 
         def memory_scores(memory, queries, alpha, k, text_prototypes):
@@ -1388,63 +1576,79 @@ cells = [
             return safe_log(fused), safe_log(visual), safe_log(text)
 
 
-        def v3_components(memory, queries, k, gamma, text_prototypes):
-            text_prototypes = normalize(text_prototypes)
-            query_matrix = normalize(queries)
-            prototypes = normalize(memory["prototypes"])
-            similarities = query_matrix @ prototypes.T
-            reliability = np.clip(
-                np.asarray(memory["reliability"], np.float32), 0.05, 1.0
+        def v4_components(
+            memory,
+            queries,
+            class_k,
+            reliability_power,
+            text_prototypes,
+        ):
+            arrays = memory_to_arrays(memory)
+            visual, selected_by_class = class_conditional_visual_scores(
+                arrays,
+                queries,
+                n_classes=N_CLASSES,
+                k_per_class=int(class_k),
+                temperature=0.07,
+                reliability_power=float(reliability_power),
             )
-            rerank_scores = similarities + float(gamma) * np.log(reliability)[None, :]
-            k_eff = min(int(k), rerank_scores.shape[1])
-            selected = np.argpartition(-rerank_scores, kth=k_eff - 1, axis=1)[:, :k_eff]
-            selected_rank = np.take_along_axis(rerank_scores, selected, axis=1)
-            order = np.argsort(-selected_rank, axis=1, kind="stable")
-            selected = np.take_along_axis(selected, order, axis=1)
-            selected_similarity = np.take_along_axis(similarities, selected, axis=1)
-            selected_reliability = reliability[selected]
-            similarity_weights = np.exp(
-                (selected_similarity - selected_similarity.max(1, keepdims=True)) / 0.07
+            text = text_class_scores(queries, normalize(text_prototypes))
+
+            valid = selected_by_class >= 0
+            safe_indices = np.clip(selected_by_class, 0, len(arrays.reliabilities) - 1)
+            selected_reliability = arrays.reliabilities[safe_indices] * valid
+            class_reliability = selected_reliability.sum(2) / np.clip(
+                valid.sum(2), 1, None
             )
-            weights = similarity_weights * selected_reliability
-            labels = np.asarray(memory["labels"], np.int64)[selected]
-            visual = np.zeros((len(query_matrix), len(text_prototypes)), dtype=np.float32)
-            rows = np.repeat(np.arange(len(query_matrix)), k_eff)
-            np.add.at(visual, (rows, labels.ravel()), weights.ravel())
-            visual /= np.clip(visual.sum(1, keepdims=True), 1e-12, None)
-            text_logits = query_matrix @ text_prototypes.T / 0.07
-            text_logits -= text_logits.max(1, keepdims=True)
-            text = np.exp(text_logits)
-            text /= text.sum(1, keepdims=True)
-            query_reliability = np.sum(
-                similarity_weights * selected_reliability, axis=1
-            ) / np.clip(similarity_weights.sum(axis=1), 1e-12, None)
-            return visual, text.astype(np.float32), query_reliability, selected
+            query_reliability = np.sum(visual * class_reliability, axis=1)
+            return (
+                visual.astype(np.float32),
+                text.astype(np.float32),
+                query_reliability.astype(np.float32),
+                selected_by_class,
+            )
 
 
-        def v3_memory_scores(memory, queries, setting, text_prototypes):
-            visual, text, query_reliability, selected = v3_components(
+        def v4_score_variants(memory, queries, setting, text_prototypes):
+            visual, text, query_reliability, selected_by_class = v4_components(
                 memory,
                 queries,
-                setting["k"],
-                setting["gamma"],
+                setting["class_k"],
+                setting["reliability_power"],
                 text_prototypes,
             )
-            text_weight = np.where(
-                query_reliability >= setting["gate_threshold"],
-                setting["alpha_reliable"],
-                setting["alpha_uncertain"],
-            )[:, None]
-            fused = (1.0 - text_weight) * visual + text_weight * text
-            safe_log = lambda scores: np.log(np.clip(scores, 1e-12, None))
-            return (
-                safe_log(fused),
-                safe_log(visual),
-                safe_log(text),
-                query_reliability,
-                selected,
+            reliability_z = (
+                query_reliability - setting["reliability_mean"]
+            ) / max(setting["reliability_std"], 1e-6)
+            alpha_fixed = np.full(
+                len(queries), setting["fixed_alpha"], dtype=np.float32
             )
+            alpha_continuous = np.clip(
+                setting["continuous_intercept"]
+                + setting["continuous_slope"] * reliability_z,
+                0.0,
+                1.0,
+            ).astype(np.float32)
+
+            safe_log = lambda scores: np.log(np.clip(scores, 1e-12, None))
+            variants = {}
+            for name, alpha in {
+                "visual": np.zeros(len(queries), dtype=np.float32),
+                "fixed": alpha_fixed,
+                "continuous": alpha_continuous,
+            }.items():
+                fused = (1.0 - alpha[:, None]) * visual + alpha[:, None] * text
+                prediction = fused.argmax(1)
+                selected = selected_by_class[np.arange(len(prediction)), prediction]
+                variants[name] = {
+                    "scores": safe_log(fused),
+                    "visual_scores": safe_log(visual),
+                    "text_scores": safe_log(text),
+                    "query_reliability": query_reliability,
+                    "selected": selected,
+                    "text_weight": alpha,
+                }
+            return variants
 
 
         def tune_memory(memory, validation_x, validation_y, text_prototypes):
@@ -1465,42 +1669,147 @@ cells = [
             return max(candidates, key=lambda item: item[:-1])[-1]
 
 
-        def tune_v3_memory(memory, validation_x, validation_y, text_prototypes):
+        def tune_v4_memory(
+            train_x,
+            train_y,
+            budget,
+            seed,
+            encoder_key,
+            validation_x,
+            validation_y,
+            text_prototypes,
+        ):
             candidates = []
-            for k in CFG.topk_grid:
-                for gamma in CFG.reliability_gamma_grid:
-                    visual, text, query_reliability, _ = v3_components(
-                        memory, validation_x, k, gamma, text_prototypes
+            tuning_records = []
+            for weight_values in CFG.reliability_weight_grid:
+                memory = fit_v4_memory(
+                    train_x,
+                    train_y,
+                    budget,
+                    seed,
+                    encoder_key,
+                    text_prototypes,
+                    weight_values,
+                )
+                for class_k in CFG.class_topk_grid:
+                    for reliability_power in CFG.reliability_power_grid:
+                        visual, text, query_reliability, _ = v4_components(
+                            memory,
+                            validation_x,
+                            class_k,
+                            reliability_power,
+                            text_prototypes,
+                        )
+                        accuracy = accuracy_score(validation_y, visual.argmax(1))
+                        nll = log_loss(
+                            validation_y,
+                            np.clip(visual, 1e-12, 1.0),
+                            labels=np.arange(N_CLASSES),
+                        )
+                        tuning_records.append(
+                            {
+                                "weights_compactness": weight_values[0],
+                                "weights_purity": weight_values[1],
+                                "weights_alignment": weight_values[2],
+                                "class_k": int(class_k),
+                                "reliability_power": float(reliability_power),
+                                "validation_accuracy": float(accuracy),
+                                "validation_nll": float(nll),
+                            }
+                        )
+                        candidates.append(
+                            (
+                                float(accuracy),
+                                -float(nll),
+                                -int(class_k),
+                                -float(reliability_power),
+                                weight_values,
+                                int(class_k),
+                                float(reliability_power),
+                                memory,
+                                visual,
+                                text,
+                                query_reliability,
+                            )
+                        )
+
+            (
+                _,
+                _,
+                _,
+                _,
+                best_weights,
+                best_class_k,
+                best_power,
+                best_memory,
+                best_visual,
+                best_text,
+                best_query_reliability,
+            ) = max(candidates, key=lambda item: item[:4])
+
+            fixed_candidates = []
+            for alpha in CFG.alpha_grid:
+                fused = (1.0 - alpha) * best_visual + alpha * best_text
+                fixed_candidates.append(
+                    (
+                        accuracy_score(validation_y, fused.argmax(1)),
+                        -log_loss(
+                            validation_y,
+                            np.clip(fused, 1e-12, 1.0),
+                            labels=np.arange(N_CLASSES),
+                        ),
+                        -float(alpha),
+                        float(alpha),
                     )
-                    thresholds = np.quantile(query_reliability, CFG.gate_quantiles)
-                    for threshold in np.atleast_1d(thresholds):
-                        for alpha_reliable in CFG.alpha_grid:
-                            for alpha_uncertain in CFG.alpha_grid:
-                                if alpha_reliable > alpha_uncertain:
-                                    continue
-                                alpha = np.where(
-                                    query_reliability >= threshold,
-                                    alpha_reliable,
-                                    alpha_uncertain,
-                                )[:, None]
-                                fused = (1.0 - alpha) * visual + alpha * text
-                                candidates.append(
-                                    (
-                                        accuracy_score(validation_y, fused.argmax(1)),
-                                        -int(k),
-                                        -float(gamma),
-                                        -float(alpha_uncertain),
-                                        {
-                                            "variant": "coverage_reliability_gate",
-                                            "k": int(k),
-                                            "gamma": float(gamma),
-                                            "gate_threshold": float(threshold),
-                                            "alpha_reliable": float(alpha_reliable),
-                                            "alpha_uncertain": float(alpha_uncertain),
-                                        },
-                                    )
-                                )
-            return max(candidates, key=lambda item: item[:-1])[-1]
+                )
+            fixed_alpha = max(fixed_candidates, key=lambda item: item[:3])[-1]
+
+            reliability_mean = float(np.mean(best_query_reliability))
+            reliability_std = float(np.std(best_query_reliability))
+            reliability_z = (best_query_reliability - reliability_mean) / max(
+                reliability_std, 1e-6
+            )
+            continuous_candidates = []
+            for intercept in CFG.alpha_grid:
+                for slope in CFG.gate_slope_grid:
+                    alpha = np.clip(intercept + slope * reliability_z, 0.0, 1.0)
+                    fused = (1.0 - alpha[:, None]) * best_visual + alpha[:, None] * best_text
+                    continuous_candidates.append(
+                        (
+                            accuracy_score(validation_y, fused.argmax(1)),
+                            -log_loss(
+                                validation_y,
+                                np.clip(fused, 1e-12, 1.0),
+                                labels=np.arange(N_CLASSES),
+                            ),
+                            -abs(float(slope)),
+                            -float(intercept),
+                            float(intercept),
+                            float(slope),
+                        )
+                    )
+            continuous_best = max(
+                continuous_candidates, key=lambda item: item[:4]
+            )
+            setting = {
+                "variant": "class_conditional_continuous_fusion",
+                "reliability_weights": {
+                    "compactness": float(best_weights[0]),
+                    "purity": float(best_weights[1]),
+                    "alignment": float(best_weights[2]),
+                },
+                "class_k": int(best_class_k),
+                "reliability_power": float(best_power),
+                "reliability_mean": reliability_mean,
+                "reliability_std": reliability_std,
+                "fixed_alpha": float(fixed_alpha),
+                "continuous_intercept": continuous_best[-2],
+                "continuous_slope": continuous_best[-1],
+            }
+            setting["global_setting"] = tune_memory(
+                best_memory, validation_x, validation_y, text_prototypes
+            )
+            return setting, best_memory, tuning_records
 
 
         def full_knn_scores(train_x, train_y, queries, k):
@@ -1575,33 +1884,71 @@ cells = [
             return min(losses, key=losses.get)
 
 
+        def select_confidence_threshold(
+            validation_scores, temperature, target_coverage=0.90
+        ):
+            validation_probabilities = softmax_np(validation_scores, temperature)
+            confidence = validation_probabilities.max(1)
+            return float(np.quantile(confidence, 1.0 - float(target_coverage)))
+
+
         def evaluate_scores(
             name,
-            test_scores,
+            evaluation_scores,
             labels,
             temperature,
+            confidence_threshold,
             seed,
+            encoder_key,
             resolution,
             extra=None,
         ):
-            probabilities = softmax_np(test_scores, temperature)
+            uncalibrated_probabilities = softmax_np(evaluation_scores, 1.0)
+            probabilities = softmax_np(evaluation_scores, temperature)
             prediction = probabilities.argmax(1)
-            one_hot = np.eye(test_scores.shape[1])[labels]
+            one_hot = np.eye(evaluation_scores.shape[1])[labels]
+            retained = probabilities.max(1) >= float(confidence_threshold)
             row = {
                 "method": name,
                 "seed": int(seed),
+                "encoder_key": str(encoder_key),
                 "resolution": int(resolution),
+                "evaluation_stage": EVALUATION_STAGE,
+                "evaluation_split": EVALUATION_SPLIT,
                 "n": int(len(labels)),
                 "accuracy": float(accuracy_score(labels, prediction)),
                 "balanced_accuracy": float(balanced_accuracy_score(labels, prediction)),
                 "macro_f1": float(f1_score(labels, prediction, average="macro")),
                 "nll": float(
-                    log_loss(labels, probabilities, labels=np.arange(test_scores.shape[1]))
+                    log_loss(
+                        labels,
+                        probabilities,
+                        labels=np.arange(evaluation_scores.shape[1]),
+                    )
                 ),
                 "brier": float(np.mean(np.sum((probabilities - one_hot) ** 2, axis=1))),
                 "ece_15": expected_calibration_error(probabilities, labels),
+                "ece_15_uncalibrated": expected_calibration_error(
+                    uncalibrated_probabilities, labels
+                ),
+                "nll_uncalibrated": float(
+                    log_loss(
+                        labels,
+                        uncalibrated_probabilities,
+                        labels=np.arange(evaluation_scores.shape[1]),
+                    )
+                ),
                 "aurc": selective_aurc(probabilities, labels),
                 "temperature": float(temperature),
+                "confidence_threshold_90pct_validation_coverage": float(
+                    confidence_threshold
+                ),
+                "selective_coverage": float(retained.mean()),
+                "selective_accuracy": float(
+                    accuracy_score(labels[retained], prediction[retained])
+                    if np.any(retained)
+                    else np.nan
+                ),
             }
             if extra:
                 row.update(extra)
@@ -1671,7 +2018,9 @@ cells = [
 
 
         def safe_filename(value):
-            return "".join(character if character.isalnum() else "_" for character in value).strip("_")
+            return "".join(
+                character if character.isalnum() else "_" for character in value
+            ).strip("_")
         ''',
         "metrics",
     ),
@@ -1679,12 +2028,12 @@ cells = [
         r'''
         ## 4. Main comparison
 
-        The table includes zero-shot CLIP, full-training-set weighted kNN, a
-        validation-tuned linear probe, random memory, centroid, KMeans medoids,
-        coverage-only facility selection, the previous EvidenceMem selection,
-        matched-cache Tip-Adapter, and EvidenceMem v3. All stochastic memory methods
-        use five seeds in paper mode. Predictions are saved per query for paired
-        bootstrap confidence intervals and exact McNemar tests.
+        Each native encoder is evaluated on the same samples. The comparison includes
+        zero-shot vision-text scoring, full-training-set weighted kNN, a linear probe,
+        matched prototype-memory baselines, Tip-Adapter, and four EvidenceMem v4
+        scoring variants. Hyperparameters, temperatures, and the 90% selective-risk
+        threshold are chosen on validation only. Query-level predictions support
+        paired bootstrap intervals and exact McNemar tests.
         '''
     ),
     code(
@@ -2169,9 +2518,10 @@ cells = [
         r'''
         ## 5. Equal-count memory-budget curves
 
-        Random memory, coverage-only facility selection, and EvidenceMem v3 are
-        evaluated at 5, 10, and 20 stored images per class. This tests whether any
-        difference is caused by the method rather than by unequal storage.
+        On the development-selected encoder, random memory, coverage-only facility
+        selection, and EvidenceMem v4 continuous fusion are evaluated at 20, 40, and
+        80 stored images per class. A hard assertion enforces equal storage before a
+        result is accepted.
         '''
     ),
     code(
@@ -2290,9 +2640,10 @@ cells = [
         r'''
         ## 6. Qualitative retrieved evidence
 
-        For the first predeclared seed, this cell exports difficult correct cases and
-        confident errors together with their three highest-ranked stored images. The
-        paths and labels are also saved as CSV so the examples remain auditable.
+        For the first predeclared seed on the selected encoder, this cell exports
+        difficult correct cases and confident errors with the three strongest stored
+        prototypes inside the predicted class. These are explicitly labeled decision
+        evidence; the quantitative evidence metric uses global neighbours instead.
         '''
     ),
     code(
@@ -2392,9 +2743,10 @@ cells = [
         r'''
         ## 7. Paper figures, integrity gate, and export
 
-        The integrity gate verifies completeness and provenance only. Whether 512 is
-        better is recorded as a result, not used as a condition for declaring the run
-        valid. This prevents a negative resolution result from being hidden.
+        The integrity gate checks manifest balance, complete methods and seeds,
+        matched budget rows, calibration output, and paired tests. A development run
+        may select one encoder but cannot unlock final claims. Only a paper-mode run
+        on the untouched confirmatory split can do that.
         '''
     ),
     code(
@@ -2564,6 +2916,22 @@ cells = [
         "export",
     ),
 ]
+
+
+def replace_tagged_code_cell(tag: str, fragment_name: str) -> None:
+    """Replace one generated code cell with a syntax-checkable source fragment."""
+    matching = [cell for cell in cells if tag in cell.get("metadata", {}).get("tags", [])]
+    if len(matching) != 1:
+        raise RuntimeError(f"Expected one notebook cell tagged {tag!r}, found {len(matching)}")
+    matching[0]["source"] = source(
+        (CELL_DIR / fragment_name).read_text(encoding="utf-8")
+    )
+
+
+replace_tagged_code_cell("main-experiment", "uie22k_v4_main.py")
+replace_tagged_code_cell("budget-curves", "uie22k_v4_budget.py")
+replace_tagged_code_cell("qualitative-evidence", "uie22k_v4_qualitative.py")
+replace_tagged_code_cell("export", "uie22k_v4_export.py")
 
 
 def main() -> None:

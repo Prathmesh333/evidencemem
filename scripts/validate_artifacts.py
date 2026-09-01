@@ -9,6 +9,7 @@ from pathlib import Path
 
 REPOSITORY = Path(__file__).resolve().parents[1]
 SOURCE_NOTEBOOK = REPOSITORY / "notebooks" / "EvidenceMem_Colab_T4.ipynb"
+UIE_NOTEBOOK = REPOSITORY / "notebooks" / "EvidenceMem_UIE22K_V4_T4.ipynb"
 LEGACY_NOTEBOOK = REPOSITORY / "results" / "evidencemem.ipynb"
 
 
@@ -65,6 +66,47 @@ def main() -> None:
         )
         ast.parse(filtered, filename=f"{SOURCE_NOTEBOOK.name}:cell-{index}")
 
+    uie = json.loads(UIE_NOTEBOOK.read_text(encoding="utf-8"))
+    uie_code = code_sources(uie)
+    uie_joined = "\n".join(uie_code)
+    uie_requirements = {
+        "development-confirmatory split": 'EVALUATION_STAGE = os.environ.get(',
+        "frozen confirmatory encoder": "CONFIRMATORY_ENCODER_KEY",
+        "native encoder sweep": '"siglip2_b16_384"',
+        "scale-corrected reliability": "reweight_prototype_reliability(",
+        "class-conditional scorer": "class_conditional_visual_scores(",
+        "continuous fusion": '"EvidenceMem v4 continuous fusion"',
+        "matched 20-40-80 budgets": "budgets=(20, 40, 80)",
+        "calibration artifact": 'RUN_DIR / "calibration_summary.csv"',
+        "paired tests": 'RUN_DIR / "paired_tests.json"',
+        "final-claim gate": '"ready_for_final_claims"',
+    }
+    uie_missing = [
+        name for name, marker in uie_requirements.items() if marker not in uie_joined
+    ]
+    if uie_missing:
+        raise SystemExit(f"UIE v4 notebook is missing safeguards: {uie_missing}")
+    uie_forbidden = {
+        "obsolete resolution loop": "CFG.resolutions",
+        "obsolete shared-resolution cache": "RESOLUTION_DATA",
+        "obsolete v3 scorer": "tune_v3_memory(",
+        "obsolete test field": "CFG.test_per_class",
+    }
+    uie_present = [
+        name for name, marker in uie_forbidden.items() if marker in uie_joined
+    ]
+    if uie_present:
+        raise SystemExit(f"UIE v4 notebook contains obsolete code: {uie_present}")
+    cell_ids = [cell.get("id") for cell in uie["cells"]]
+    if len(cell_ids) != len(set(cell_ids)):
+        raise SystemExit("UIE v4 notebook cell IDs are not unique")
+    for index, cell in enumerate(uie["cells"]):
+        if cell.get("cell_type") != "code":
+            continue
+        if cell.get("execution_count") is not None or cell.get("outputs"):
+            raise SystemExit(f"UIE v4 source cell {index} contains retained outputs")
+        ast.parse("".join(cell.get("source", [])), filename=f"{UIE_NOTEBOOK.name}:cell-{index}")
+
     legacy = json.loads(LEGACY_NOTEBOOK.read_text(encoding="utf-8"))
     executed = sum(
         cell.get("execution_count") is not None
@@ -88,7 +130,8 @@ def main() -> None:
         raise SystemExit("root README must remain venue-neutral")
     print(
         f"Artifact audit passed: {len(source_code)} clean source cells, "
-        f"{executed} executed legacy cells, package {project_version[1]}."
+        f"{len(uie_code)} UIE v4 code cells, {executed} executed legacy cells, "
+        f"package {project_version[1]}."
     )
 
 

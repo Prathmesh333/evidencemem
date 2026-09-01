@@ -7,7 +7,7 @@ different implementation of the method.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Literal
 
@@ -15,7 +15,7 @@ import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
 from .memory import EvidenceMemory, ReliabilityWeights, SelectionConfig
-from .utils import FloatArray, normalize_rows
+from .utils import FloatArray, cosine_to_unit, normalize_rows
 
 IntArray = NDArray[np.int64]
 PrototypeMethod = Literal[
@@ -77,6 +77,42 @@ class PrototypeArrays:
                 budget_per_class=int(archive["budget_per_class"]),
                 seed=int(archive["seed"]),
             )
+
+
+def reweight_prototype_reliability(
+    memory: PrototypeArrays,
+    weights: ReliabilityWeights,
+    *,
+    minimum: float = 0.05,
+) -> PrototypeArrays:
+    """Recompute reliability on compatible unit scales.
+
+    Compactness and text alignment are cosine similarities in ``[-1, 1]``;
+    purity already lies in ``[0, 1]``. Missing text alignment is excluded from
+    the active weight for that prototype, matching :class:`EvidenceMemory`.
+    """
+    if not 0.0 <= minimum <= 1.0:
+        raise ValueError("minimum reliability must lie in [0, 1]")
+
+    compactness = np.asarray(cosine_to_unit(memory.compactness), dtype=np.float32)
+    purity = np.clip(np.asarray(memory.purity, dtype=np.float32), 0.0, 1.0)
+    alignment_raw = np.asarray(memory.text_alignment, dtype=np.float32)
+    alignment_present = np.isfinite(alignment_raw)
+    alignment = np.asarray(
+        cosine_to_unit(np.nan_to_num(alignment_raw, nan=0.0)), dtype=np.float32
+    )
+
+    numerator = weights.compactness * compactness + weights.purity * purity
+    denominator = np.full(
+        len(memory.prototypes),
+        weights.compactness + weights.purity,
+        dtype=np.float32,
+    )
+    numerator += weights.text_alignment * alignment * alignment_present
+    denominator += weights.text_alignment * alignment_present
+    reliability = numerator / np.clip(denominator, 1e-12, None)
+    reliability = np.clip(reliability, minimum, 1.0).astype(np.float32)
+    return replace(memory, reliabilities=reliability)
 
 
 def _mapping_from_matrix(values: ArrayLike | None) -> dict[int, FloatArray]:
@@ -269,6 +305,66 @@ def visual_class_scores(
     rows = np.repeat(np.arange(len(indices)), indices.shape[1])
     np.add.at(scores, (rows, retrieved_labels.ravel()), weights.ravel())
     return scores / np.clip(scores.sum(axis=1, keepdims=True), 1e-12, None)
+
+
+def class_conditional_visual_scores(
+    memory: PrototypeArrays,
+    queries: ArrayLike,
+    *,
+    k_per_class: int,
+    n_classes: int,
+    temperature: float = 0.07,
+    reliability_power: float = 1.0,
+) -> tuple[FloatArray, NDArray[np.int64]]:
+    """Score each class from its own best prototypes using log-mean-exp.
+
+    Global top-k voting can ignore a class entirely when a salient foreground
+    object dominates the neighbours. This scorer retrieves an equal top-k set
+    inside every class, aggregates similarity and reliability, and returns the
+    selected prototype indices for evidence auditing.
+    """
+    if k_per_class < 1:
+        raise ValueError("k_per_class must be positive")
+    if n_classes < 1:
+        raise ValueError("n_classes must be positive")
+    if temperature <= 0:
+        raise ValueError("temperature must be positive")
+    if reliability_power < 0:
+        raise ValueError("reliability_power must be non-negative")
+    if np.any(memory.labels < 0) or np.any(memory.labels >= n_classes):
+        raise ValueError("memory labels must lie in [0, n_classes)")
+
+    query_matrix = normalize_rows(queries, name="queries")
+    class_logits = np.full((len(query_matrix), n_classes), -np.inf, dtype=np.float32)
+    selected = np.full(
+        (len(query_matrix), n_classes, k_per_class), -1, dtype=np.int64
+    )
+    for class_id in range(n_classes):
+        class_indices = np.flatnonzero(memory.labels == class_id)
+        if not len(class_indices):
+            continue
+        similarities, local_indices = exact_search(
+            memory.prototypes[class_indices], query_matrix, k_per_class
+        )
+        global_indices = class_indices[local_indices]
+        selected[:, class_id, : global_indices.shape[1]] = global_indices
+        reliability = np.clip(memory.reliabilities[global_indices], 1e-8, 1.0)
+        log_weights = similarities / temperature
+        if reliability_power:
+            log_weights += reliability_power * np.log(reliability)
+        row_max = log_weights.max(axis=1, keepdims=True)
+        class_logits[:, class_id] = (
+            row_max[:, 0]
+            + np.log(np.exp(log_weights - row_max).mean(axis=1))
+        )
+
+    if np.any(~np.isfinite(class_logits).all(axis=1)):
+        missing = np.flatnonzero(~np.isfinite(class_logits).any(axis=0)).tolist()
+        raise ValueError(f"memory has no prototypes for classes: {missing}")
+    class_logits -= class_logits.max(axis=1, keepdims=True)
+    probabilities = np.exp(class_logits)
+    probabilities /= probabilities.sum(axis=1, keepdims=True)
+    return np.asarray(probabilities, dtype=np.float32), selected
 
 
 def text_class_scores(

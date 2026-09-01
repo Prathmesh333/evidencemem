@@ -14,10 +14,13 @@ that motivated the corrected protocol.
 The software and experiment protocol have been hardened, but the corrected full GPU run
 has not been completed yet. This distinction matters:
 
-- The package has 16 passing tests covering selection, scoring, serialization, cache
+- The package has 18 passing tests covering selection, scoring, serialization, cache
   tampering, model-name resolution, and run manifests.
 - The clean notebook uses the same package code as the tests. It no longer contains a
   second implementation of EvidenceMem.
+- The UIE-22K v4 notebook fixes the reliability-scale error found in the completed
+  224-vs-512 run and adds class-conditional scoring, continuous fusion, native encoder
+  comparisons, calibration checks, and a separate confirmatory split.
 - The old executed T4 notebook is preserved in [`results/`](results/) for transparency.
   Its numbers are historical observations, not final paper evidence.
 - [`scripts/check_submission_readiness.py`](scripts/check_submission_readiness.py) blocks
@@ -32,6 +35,7 @@ evidence for another researcher or reviewer to audit the result.
 | Resource | Purpose |
 |---|---|
 | [`notebooks/EvidenceMem_Colab_T4.ipynb`](notebooks/EvidenceMem_Colab_T4.ipynb) | Clean end-to-end notebook for a Colab T4 |
+| [`notebooks/EvidenceMem_UIE22K_V4_T4.ipynb`](notebooks/EvidenceMem_UIE22K_V4_T4.ipynb) | Kaggle T4 experiment on the fixed 22,000-image UIE subset |
 | [`results/`](results/) | Historical run, audit record, and location for corrected run archives |
 | [`src/evidencemem/`](src/evidencemem/) | Reusable implementation used by the notebook |
 | [`docs/EXPERIMENT_PROTOCOL.md`](docs/EXPERIMENT_PROTOCOL.md) | Frozen evaluation and reporting rules |
@@ -42,6 +46,37 @@ evidence for another researcher or reviewer to audit the result.
 [Open the clean notebook in Google Colab](https://colab.research.google.com/github/Prathmesh333/evidencemem/blob/main/notebooks/EvidenceMem_Colab_T4.ipynb).
 If the repository is private, Colab may request GitHub access. Downloading the notebook
 and uploading it to Colab also works.
+
+## Run the UIE-22K v4 experiment on Kaggle
+
+Use [`notebooks/EvidenceMem_UIE22K_V4_T4.ipynb`](notebooks/EvidenceMem_UIE22K_V4_T4.ipynb)
+for the 512×512-image follow-up. Add the Kaggle dataset
+`rhtsingh/130k-images-512x512-universal-image-embeddings`, turn Internet on and select a
+T4 GPU. The suggested ConvNeXt training notebook is optional; it does not contain the
+raw images.
+
+The notebook keeps 2,000 deduplicated images from each of 11 classes, for 22,000 images
+in total. Its fixed manifest assigns 1,200 images per class to training, 200 to
+validation, 300 to development and 300 to confirmatory evaluation. The default
+development run compares four frozen encoders at their native 224, 336 or 384 pixel
+input size. It does not stretch a 224-pixel checkpoint to 512 again.
+
+The development run chooses one encoder. Record that key, then run the notebook again
+with `EVALUATION_STAGE="confirmatory"` and the same key in
+`CONFIRMATORY_ENCODER_KEY`. Confirmatory mode refuses to start without a frozen key.
+This keeps the final 3,300 images out of model and method selection.
+
+EvidenceMem v4 tests the changes suggested by the earlier result rather than assuming
+that larger images must help. It maps cosine compactness and text alignment to `[0, 1]`
+before combining them with purity, retrieves the same number of candidates inside every
+class, compares fixed and continuous visual-text fusion, and measures matched memory
+budgets of 20, 40 and 80 images per class. Every choice comes from validation data.
+
+Each run exports per-query predictions, encoder timing, selected settings, reliability
+tuning records, calibration before and after temperature scaling, selective accuracy,
+paired tests, budget curves, qualitative decision evidence, a file-hash manifest and a
+single ZIP archive. Development results can choose the final setup. Only the untouched
+confirmatory run can support the paper's final numbers.
 
 ## How the idea developed
 
@@ -347,7 +382,8 @@ retained outputs in the clean source notebook, or package-version drift.
 │   ├── LITERATURE_MAP.md
 │   └── RESEARCH_PLAN.md
 ├── notebooks/
-│   └── EvidenceMem_Colab_T4.ipynb
+│   ├── EvidenceMem_Colab_T4.ipynb
+│   └── EvidenceMem_UIE22K_V4_T4.ipynb
 ├── paper/
 │   └── README.md
 ├── results/
@@ -357,7 +393,9 @@ retained outputs in the clean source notebook, or package-version drift.
 │   └── README.md
 ├── scripts/
 │   ├── check_submission_readiness.py
+│   ├── build_uie22k_notebook.py
 │   ├── extract_embeddings.py
+│   ├── notebook_cells/
 │   ├── smoke_core.py
 │   └── validate_artifacts.py
 ├── src/evidencemem/
