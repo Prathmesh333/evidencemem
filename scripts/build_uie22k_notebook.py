@@ -71,6 +71,11 @@ cells = [
            pixel encoders. CUDA out-of-memory errors automatically reduce batch size,
            and embedding caches make later method runs inexpensive.
 
+        If an earlier Kaggle version failed after finishing one or more encoders, add
+        that notebook version's output as an input. This notebook will reuse a cache
+        only after checking its hashes, sample IDs, split, encoder, and preprocessing
+        contract.
+
         The 14 GB input stays read-only under `/kaggle/input`. The notebook hashes at
         most 2,400 candidates per class, keeps exactly 2,000 unique samples per class,
         and never copies the complete dataset into `/kaggle/working`.
@@ -298,7 +303,7 @@ cells = [
             "google-universal-image-embedding-convnext-train"
         )
         PROTOCOL_ID = "uie22k_evidencemem_v4"
-        PROTOCOL_REVISION = "2.0.0"
+        PROTOCOL_REVISION = "2.0.1"
 
         PAPER_ENCODERS = (
             (
@@ -1192,6 +1197,26 @@ cells = [
 
         OPENCLIP_MODELS = set(open_clip.list_models())
         OPENCLIP_PRETRAINED = set(open_clip.list_pretrained())
+        PREPROCESS_CONTRACTS = {
+            "open_clip": "open_clip_native_eval_v1",
+            "transformers": "hf_slow_processor_native_eval_v2",
+        }
+
+
+        def pooled_feature_tensor(output, *, source):
+            """Accept tensor and structured Hugging Face feature-return APIs."""
+            if torch.is_tensor(output):
+                return output
+            pooled = getattr(output, "pooler_output", None)
+            if torch.is_tensor(pooled):
+                return pooled
+            if isinstance(output, (tuple, list)):
+                for candidate in output:
+                    if torch.is_tensor(candidate) and candidate.ndim == 2:
+                        return candidate
+            raise TypeError(
+                f"{source} returned {type(output).__name__} without a pooled tensor."
+            )
 
 
         def load_encoder(spec):
@@ -1233,7 +1258,12 @@ cells = [
                 }
 
             if spec["backend"] == "transformers":
-                processor = AutoProcessor.from_pretrained(spec["model"])
+                try:
+                    processor = AutoProcessor.from_pretrained(
+                        spec["model"], use_fast=False
+                    )
+                except TypeError:
+                    processor = AutoProcessor.from_pretrained(spec["model"])
                 try:
                     model = AutoModel.from_pretrained(
                         spec["model"], dtype=torch.float16
@@ -1250,7 +1280,10 @@ cells = [
                     ][0]
 
                 def encode_images(images):
-                    return model.get_image_features(pixel_values=images)
+                    output = model.get_image_features(pixel_values=images)
+                    return pooled_feature_tensor(
+                        output, source="get_image_features"
+                    )
 
                 def encode_texts(texts):
                     inputs = processor(
@@ -1264,7 +1297,10 @@ cells = [
                         for key, value in inputs.items()
                         if key in {"input_ids", "attention_mask", "position_ids"}
                     }
-                    return model.get_text_features(**text_inputs)
+                    output = model.get_text_features(**text_inputs)
+                    return pooled_feature_tensor(
+                        output, source="get_text_features"
+                    )
 
                 return {
                     "model": model,
@@ -1296,27 +1332,99 @@ cells = [
                 "sample_ids_sha256": hashlib.sha256("\0".join(ids).encode()).hexdigest(),
                 "manifest_id": MANIFEST_ID,
                 "encoder": spec,
-                "preprocess_contract": "native_pretrained_eval_v1",
-                "source_id": SOURCE_ID,
+                "preprocess_contract": PREPROCESS_CONTRACTS[spec["backend"]],
             }
             key = hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()[:16]
             return CACHE_DIR / f"uie22k_{split_name}_{spec['key']}_{key}.npz"
+
+
+        def compatible_embedding_cache(
+            split_name, spec, expected_ids, expected_labels, local_path
+        ):
+            expected_fingerprint = hashlib.sha256(
+                json.dumps(
+                    {
+                        "spec": spec,
+                        "preprocess_contract": PREPROCESS_CONTRACTS[spec["backend"]],
+                    },
+                    sort_keys=True,
+                ).encode()
+            ).hexdigest()
+            legacy_fingerprint = hashlib.sha256(
+                json.dumps(spec, sort_keys=True).encode()
+            ).hexdigest()
+            search_directories = [CACHE_DIR]
+            kaggle_input = Path("/kaggle/input")
+            notebook_inputs = kaggle_input / "notebooks"
+            if notebook_inputs.is_dir():
+                search_directories.extend(
+                    path
+                    for path in notebook_inputs.glob(
+                        f"*/*/EvidenceMem/cache/{PROTOCOL_ID}"
+                    )
+                    if path.is_dir()
+                )
+            if kaggle_input.is_dir():
+                search_directories.extend(
+                    path / "EvidenceMem" / "cache" / PROTOCOL_ID
+                    for path in kaggle_input.iterdir()
+                    if (path / "EvidenceMem" / "cache" / PROTOCOL_ID).is_dir()
+                )
+
+            pattern = f"uie22k_{split_name}_{spec['key']}_*.npz"
+            candidates = [local_path]
+            for directory in search_directories:
+                candidates.extend(sorted(directory.glob(pattern)))
+            seen = set()
+            for candidate in candidates:
+                resolved = str(candidate.resolve()) if candidate.exists() else str(candidate)
+                if resolved in seen or not candidate.is_file():
+                    continue
+                seen.add(resolved)
+                if not candidate.with_suffix(".json").is_file():
+                    continue
+                try:
+                    cached = load_embedding_cache(candidate)
+                    manifest = cached.manifest
+                    allowed_fingerprints = {expected_fingerprint}
+                    if spec["backend"] == "open_clip":
+                        # v4 Version 2 used identical OpenCLIP preprocessing but keyed
+                        # its cache by the repository commit.
+                        allowed_fingerprints.add(legacy_fingerprint)
+                    compatible = (
+                        manifest.dataset == "UIE-22K"
+                        and manifest.split == split_name
+                        and manifest.model_name == spec["model"]
+                        and manifest.pretrained == spec["weights"]
+                        and manifest.preprocess_fingerprint in allowed_fingerprints
+                        and np.array_equal(
+                            cached.sample_ids.astype(str), expected_ids
+                        )
+                        and np.array_equal(cached.labels, expected_labels)
+                    )
+                    if compatible:
+                        return candidate, cached
+                except Exception as error:
+                    print(f"Ignoring invalid embedding cache {candidate}: {error}")
+            return None, None
 
 
         def encode_split(adapter, spec, split_name):
             frame = SPLIT_FRAMES[split_name]
             path = embedding_cache_path(split_name, spec)
             expected_ids = frame["sample_id"].astype(str).to_numpy()
-            if path.is_file() and path.with_suffix(".json").is_file():
-                cached = load_embedding_cache(path)
-                if not np.array_equal(cached.sample_ids.astype(str), expected_ids):
-                    raise ValueError("Cached sample IDs do not match the fixed manifest.")
+            expected_labels = frame["label"].map(CLASS_TO_ID).to_numpy(np.int64)
+            cache_path, cached = compatible_embedding_cache(
+                split_name, spec, expected_ids, expected_labels, path
+            )
+            if cached is not None:
                 return cached.embeddings, cached.labels, {
                     "encoder_key": spec["key"],
                     "backend": spec["backend"],
                     "resolution": int(spec["resolution"]),
                     "split": split_name,
                     "cache_hit": True,
+                    "cache_source": str(cache_path),
                     "seconds": 0.0,
                     "images_per_second": None,
                     "peak_vram_gb": None,
@@ -1369,7 +1477,13 @@ cells = [
             matrix = normalize(np.concatenate(embeddings))
             label_array = np.concatenate(labels).astype(np.int64)
             preprocess_fingerprint = hashlib.sha256(
-                json.dumps(spec, sort_keys=True).encode()
+                json.dumps(
+                    {
+                        "spec": spec,
+                        "preprocess_contract": PREPROCESS_CONTRACTS[spec["backend"]],
+                    },
+                    sort_keys=True,
+                ).encode()
             ).hexdigest()
             save_embedding_cache(
                 path,
@@ -1389,6 +1503,7 @@ cells = [
                 "resolution": int(spec["resolution"]),
                 "split": split_name,
                 "cache_hit": False,
+                "cache_source": str(path),
                 "seconds": float(elapsed),
                 "images_per_second": float(len(dataset) / max(elapsed, 1e-12)),
                 "peak_vram_gb": float(torch.cuda.max_memory_allocated() / 2**30),
@@ -1408,6 +1523,11 @@ cells = [
                 matrix, labels, runtime = encode_split(adapter, spec, split_name)
                 split_data[split_name] = (matrix, labels)
                 encoder_runtime_rows.append(runtime)
+                atomic_csv(
+                    pd.DataFrame(encoder_runtime_rows),
+                    RUN_DIR / "encoder_runtime.csv",
+                )
+                journal("embedding_split_ready", **runtime)
             split_data["text_prototypes"] = text_prototypes
             split_data["spec"] = dict(spec)
             ENCODER_DATA[encoder_key] = split_data

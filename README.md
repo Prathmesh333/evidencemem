@@ -14,8 +14,8 @@ that motivated the corrected protocol.
 The software and experiment protocol have been hardened, but the corrected full GPU run
 has not been completed yet. This distinction matters:
 
-- The package has 18 passing tests covering selection, scoring, serialization, cache
-  tampering, model-name resolution, and run manifests.
+- The package test suite covers selection, scoring, serialization, cache tampering,
+  model-name resolution, hosted-notebook compatibility, and run manifests.
 - The clean notebook uses the same package code as the tests. It no longer contains a
   second implementation of EvidenceMem.
 - The UIE-22K v4 notebook fixes the reliability-scale error found in the completed
@@ -77,6 +77,11 @@ tuning records, calibration before and after temperature scaling, selective accu
 paired tests, budget curves, qualitative decision evidence, a file-hash manifest and a
 single ZIP archive. Development results can choose the final setup. Only the untouched
 confirmatory run can support the paper's final numbers.
+
+If Kaggle stops after an encoder has finished, add that failed notebook version's output
+as an input before rerunning. The notebook searches attached notebook outputs for caches
+and reuses one only when its hashes, sample IDs, split, model and preprocessing contract
+all match. This avoids recomputing finished OpenCLIP embeddings after a later failure.
 
 ## How the idea developed
 
