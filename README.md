@@ -36,6 +36,7 @@ evidence for another researcher or reviewer to audit the result.
 |---|---|
 | [`notebooks/EvidenceMem_Colab_T4.ipynb`](notebooks/EvidenceMem_Colab_T4.ipynb) | Clean end-to-end notebook for a Colab T4 |
 | [`notebooks/EvidenceMem_UIE22K_V4_T4.ipynb`](notebooks/EvidenceMem_UIE22K_V4_T4.ipynb) | Kaggle T4 experiment on the fixed 22,000-image UIE subset |
+| [`notebooks/EvidenceMem_UIE22K_V4_Confirmatory_T4.ipynb`](notebooks/EvidenceMem_UIE22K_V4_Confirmatory_T4.ipynb) | Hard-frozen Kaggle T4 confirmatory run for the selected SigLIP2 encoder |
 | [`results/`](results/) | Historical run, audit record, and location for corrected run archives |
 | [`src/evidencemem/`](src/evidencemem/) | Reusable implementation used by the notebook |
 | [`docs/EXPERIMENT_PROTOCOL.md`](docs/EXPERIMENT_PROTOCOL.md) | Frozen evaluation and reporting rules |
@@ -61,10 +62,21 @@ validation, 300 to development and 300 to confirmatory evaluation. The default
 development run compares four frozen encoders at their native 224, 336 or 384 pixel
 input size. It does not stretch a 224-pixel checkpoint to 512 again.
 
-The development run chooses one encoder. Record that key, then run the notebook again
-with `EVALUATION_STAGE="confirmatory"` and the same key in
-`CONFIRMATORY_ENCODER_KEY`. Confirmatory mode refuses to start without a frozen key.
-This keeps the final 3,300 images out of model and method selection.
+The completed development run selected `siglip2_b16_384`. Do not edit the development
+notebook into a test notebook. Use the separate
+[`EvidenceMem_UIE22K_V4_Confirmatory_T4.ipynb`](notebooks/EvidenceMem_UIE22K_V4_Confirmatory_T4.ipynb)
+file for the final run. It hard-freezes the selected encoder, 40-image-per-class memory
+budget, five seeds, protocol revision, package tree, and the exact development manifest
+hash. It refuses to continue if any frozen value changes. This keeps the final 3,300
+images out of model and method selection.
+
+The confirmatory notebook predeclares two decisions before opening the confirmatory
+split. The primary test asks whether the 440-image EvidenceMem is non-inferior to the
+13,200-image full kNN memory at a one-percentage-point margin. The secondary test asks
+whether reliability-aware continuous fusion beats the matched equal-count facility
+baseline. Both use hierarchical paired confidence intervals across the five memory
+seeds and 3,300 confirmatory examples. A failed hypothesis is saved as a valid result;
+it must not be followed by additional tuning on the same split.
 
 EvidenceMem v4 tests the changes suggested by the earlier result rather than assuming
 that larger images must help. It maps cosine compactness and text alignment to `[0, 1]`
@@ -75,8 +87,10 @@ budgets of 20, 40 and 80 images per class. Every choice comes from validation da
 Each run exports per-query predictions, encoder timing, selected settings, reliability
 tuning records, calibration before and after temperature scaling, selective accuracy,
 paired tests, budget curves, qualitative decision evidence, a file-hash manifest and a
-single ZIP archive. Development results can choose the final setup. Only the untouched
-confirmatory run can support the paper's final numbers.
+single ZIP archive. The confirmatory archive additionally includes
+`frozen_protocol.json` and `confirmatory_hypotheses.csv/json`, and the final claim gate
+checks every frozen value and expected statistical row. Development results can choose
+the final setup. Only the untouched confirmatory run can support final numerical claims.
 
 If Kaggle stops after an encoder has finished, add that failed notebook version's output
 as an input before rerunning. The notebook searches attached notebook outputs for caches
@@ -388,7 +402,8 @@ retained outputs in the clean source notebook, or package-version drift.
 │   └── RESEARCH_PLAN.md
 ├── notebooks/
 │   ├── EvidenceMem_Colab_T4.ipynb
-│   └── EvidenceMem_UIE22K_V4_T4.ipynb
+│   ├── EvidenceMem_UIE22K_V4_T4.ipynb
+│   └── EvidenceMem_UIE22K_V4_Confirmatory_T4.ipynb
 ├── paper/
 │   └── README.md
 ├── results/
@@ -398,6 +413,7 @@ retained outputs in the clean source notebook, or package-version drift.
 │   └── README.md
 ├── scripts/
 │   ├── check_submission_readiness.py
+│   ├── build_uie22k_confirmatory_notebook.py
 │   ├── build_uie22k_notebook.py
 │   ├── extract_embeddings.py
 │   ├── notebook_cells/

@@ -9,6 +9,27 @@ The comparison fixes the encoder, normalized embeddings, class split, candidate
 multiplier, final prototype count, prompt ensemble, validation set, retrieval rule, and
 hyperparameter search space. The treatment adds reliability to selection and voting.
 
+## UIE-22K v4 confirmatory freeze
+
+The completed development run used manifest
+`f9eece5f3f489fd2b986ca89b797c2843e53e2618cd93361b730f0c77bff2c09` and selected
+`siglip2_b16_384` with EvidenceMem v4 continuous fusion. The confirmatory run is a
+separate notebook and may not change the following values:
+
+- protocol `uie22k_evidencemem_v4`, revision `2.0.1`;
+- package tree `9fec2b475fe962bd92fd8d6e496ec7bcc0b1835e`;
+- sample seed 2026 and memory seeds 7, 17, 29, 43, and 61;
+- 1,200 train, 200 validation, 300 development, and 300 confirmatory images per class;
+- encoder `siglip2_b16_384` and method `EvidenceMem v4 continuous fusion`; and
+- 40 stored images per class for the main comparison.
+
+The primary confirmatory hypothesis is one-percentage-point non-inferiority to full kNN
+with 30 times fewer stored images. The secondary hypothesis is superiority over the
+equal-count facility-selection baseline. Decisions use a hierarchical paired bootstrap
+over seeds and examples. Per-seed exact McNemar tests and Benjamini-Hochberg-adjusted
+secondary comparisons remain supporting analyses. A negative result is final for this
+split; it may motivate a newly registered experiment but not more tuning here.
+
 ## Protocol levels
 
 ### Level 0: software validation
