@@ -1,0 +1,149 @@
+{
+  "protocol_id": "uie22k_evidencemem_v4",
+  "protocol_revision": "2.0.1",
+  "manifest_id": "f9eece5f3f489fd2b986ca89b797c2843e53e2618cd93361b730f0c77bff2c09",
+  "mode": "paper",
+  "evaluation_stage": "confirmatory",
+  "integrity_checks": {
+    "confirmatory_stage": true,
+    "paper_mode": true,
+    "protocol_id_matches_development": true,
+    "protocol_revision_matches_development": true,
+    "manifest_matches_development": true,
+    "package_tree_matches_development": true,
+    "encoder_matches_development_selection": true,
+    "method_matches_development_selection": true,
+    "budget_matches_development_selection": true,
+    "sample_seed_matches_development": true,
+    "seeds_match_development": true,
+    "confirmatory_hypotheses_complete": true,
+    "confirmatory_statistics_finite": true,
+    "paired_tests_complete": true,
+    "manifest_balanced": true,
+    "manifest_has_no_exact_duplicates": true,
+    "classification_rows_complete": true,
+    "method_registry_complete": true,
+    "all_seeds_complete": true,
+    "all_encoders_complete": true,
+    "paired_tests_present": true,
+    "budget_rows_complete": true,
+    "calibration_rows_complete": true
+  },
+  "run_complete": true,
+  "ready_for_development_selection": false,
+  "ready_for_final_claims": true,
+  "result_summary": {
+    "evaluation_stage": "confirmatory",
+    "evaluation_split": "confirmatory",
+    "selected_encoder_key": "siglip2_b16_384",
+    "accuracy_by_encoder": {
+      "siglip2_b16_384": 0.9492727272727273
+    },
+    "macro_f1_by_encoder": {
+      "siglip2_b16_384": 0.9487767158998907
+    },
+    "ece_by_encoder": {
+      "siglip2_b16_384": 0.018113637648888705
+    }
+  },
+  "frozen_development_record": {
+    "protocol_id": "uie22k_evidencemem_v4",
+    "protocol_revision": "2.0.1",
+    "manifest_id": "f9eece5f3f489fd2b986ca89b797c2843e53e2618cd93361b730f0c77bff2c09",
+    "development_commit": "0b766243eb6352db067b7de2815e4472cca0c6d2",
+    "development_package_tree": "9fec2b475fe962bd92fd8d6e496ec7bcc0b1835e",
+    "development_main_cell_blob": "d1adfdc3c15aae64e87b904ad8613786c2af3e5b",
+    "development_notebook_sha256": "c394871ec35dd7a29576722b26d19a8b7433d3c284260a58e604ec68c8fbee77",
+    "encoder_key": "siglip2_b16_384",
+    "method": "EvidenceMem v4 continuous fusion",
+    "default_budget_per_class": 40,
+    "sample_seed": 2026,
+    "seeds": [
+      7,
+      17,
+      29,
+      43,
+      61
+    ],
+    "development_accuracy": 0.9505454545454546,
+    "development_macro_f1": 0.9502520045278262,
+    "development_ece_15": 0.016757387634576574,
+    "confirmatory_hypotheses": [
+      {
+        "id": "H1_full_knn_noninferiority_1pp",
+        "role": "primary",
+        "baseline": "Full kNN",
+        "alternative": "noninferiority",
+        "margin": 0.01
+      },
+      {
+        "id": "H2_facility_superiority",
+        "role": "secondary",
+        "baseline": "Facility selection (no reliability) fused",
+        "alternative": "superiority",
+        "margin": 0.0
+      }
+    ]
+  },
+  "confirmatory_hypotheses": [
+    {
+      "hypothesis_id": "H1_full_knn_noninferiority_1pp",
+      "role": "primary",
+      "encoder_key": "siglip2_b16_384",
+      "method": "EvidenceMem v4 continuous fusion",
+      "baseline": "Full kNN",
+      "alternative": "noninferiority",
+      "margin": 0.01,
+      "accuracy_delta": -0.009818181818181818,
+      "accuracy_delta_pp": -0.9818181818181818,
+      "ci_low": -0.01285,
+      "ci_high": -0.006787878787878788,
+      "ci_low_pp": -1.2850000000000001,
+      "ci_high_pp": -0.6787878787878788,
+      "bootstrap_p_two_sided": 0.0001999600079984003,
+      "seed_sign_flip_p_two_sided": 0.0625,
+      "seed_deltas": "[-0.008787878787878787, -0.009696969696969697, -0.01090909090909091, -0.0069696969696969695, -0.012727272727272728]",
+      "draws": 5000,
+      "n_seeds": 5,
+      "n_examples": 3300,
+      "evidence_stored_examples": 440,
+      "baseline_stored_examples": 13200,
+      "baseline_to_evidence_storage_ratio": 30.0,
+      "decision_boundary": -0.01,
+      "supported": false,
+      "decision_rule": "supported iff the hierarchical 95% CI lower bound is greater than -0.0100"
+    },
+    {
+      "hypothesis_id": "H2_facility_superiority",
+      "role": "secondary",
+      "encoder_key": "siglip2_b16_384",
+      "method": "EvidenceMem v4 continuous fusion",
+      "baseline": "Facility selection (no reliability) fused",
+      "alternative": "superiority",
+      "margin": 0.0,
+      "accuracy_delta": 0.0012121212121212121,
+      "accuracy_delta_pp": 0.12121212121212122,
+      "ci_low": -0.0010303030303030303,
+      "ci_high": 0.003515151515151515,
+      "ci_low_pp": -0.10303030303030303,
+      "ci_high_pp": 0.3515151515151515,
+      "bootstrap_p_two_sided": 0.30293941211757647,
+      "seed_sign_flip_p_two_sided": 0.375,
+      "seed_deltas": "[0.0030303030303030303, 0.0006060606060606061, -0.0009090909090909091, 0.0036363636363636364, -0.00030303030303030303]",
+      "draws": 5000,
+      "n_seeds": 5,
+      "n_examples": 3300,
+      "evidence_stored_examples": 440,
+      "baseline_stored_examples": 440,
+      "baseline_to_evidence_storage_ratio": 1.0,
+      "decision_boundary": 0.0,
+      "supported": false,
+      "decision_rule": "supported iff the hierarchical 95% CI lower bound is greater than +0.0000"
+    }
+  ],
+  "hypothesis_support": {
+    "H1_full_knn_noninferiority_1pp": false,
+    "H2_facility_superiority": false
+  },
+  "warning": "Confirmatory results are valid only if no tuning follows this run."
+}

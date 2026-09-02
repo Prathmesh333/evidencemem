@@ -34,6 +34,7 @@ paper/*.fls
 paper/*.log
 paper/*.out
 paper/*.pdf
+!paper/main.pdf
 
 # Editors and operating systems.
 .idea/

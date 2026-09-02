@@ -35,9 +35,10 @@ be checked against the publisher or official repository before it enters a paper
 ## Submodular and coreset selection
 
 Facility-location objectives and greedy submodular maximization are established tools.
-EvidenceMem’s approximation statement is therefore not presented as a new theorem. The
-research question is whether adding prototype reliability to that selection rule helps a
-bounded vision-language memory under matched controls.
+EvidenceMem's approximation statement is therefore not a new theorem. The v4
+confirmatory run uses coverage-only facility selection, then applies reliability during
+scoring and fusion. The completed experiment did not establish a reliability-related
+accuracy gain over the equal-count facility baseline.
 
 The final related-work section needs a verified review of:
 

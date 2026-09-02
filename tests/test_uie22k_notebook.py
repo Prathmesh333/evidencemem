@@ -174,10 +174,14 @@ def test_confirmatory_notebook_is_hard_frozen() -> None:
     assert "hierarchical_paired_accuracy" in statistics
     assert "H1_full_knn_noninferiority_1pp" in parameters
     assert "H2_facility_superiority" in parameters
+    assert 'RUN_DIR / "frozen_protocol.json"' in guard
     assert 'RUN_DIR / "confirmatory_hypotheses.csv"' in statistics
+    assert 'RUN_DIR / "confirmatory_hypotheses.json"' in statistics
     assert '"confirmatory_hypotheses_complete"' in export
     assert '"paired_tests_complete"' in export
-    assert '"frozen_protocol.json"' in export
+    assert "for path in RUN_DIR.iterdir()" in export
+    assert 'path.name != "run_manifest.json"' in export
+    assert 'journal("run_complete"' in export
 
     cell_ids = [cell.get("id") for cell in notebook["cells"]]
     assert len(cell_ids) == len(set(cell_ids))

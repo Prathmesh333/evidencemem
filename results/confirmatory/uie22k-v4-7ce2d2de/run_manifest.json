@@ -1,0 +1,276 @@
+{
+  "schema_version": 1,
+  "status": "complete",
+  "started_utc": "2026-09-01T19:20:23.539590+00:00",
+  "completed_utc": "2026-09-01T19:57:10.659761+00:00",
+  "run_id": "paper-635a68ad61ac",
+  "source_revision": "7ce2d2de4283a52c4a114352cfb9d211e0f9a426",
+  "config_sha256": "635a68ad61ac5bbd75d323cd56de1338c137937c505a7d97f348125b0b524025",
+  "config": {
+    "experiment": {
+      "mode": "paper",
+      "sample_seed": 2026,
+      "samples_per_class": 2000,
+      "candidate_cap_per_class": 2400,
+      "train_per_class": 1200,
+      "val_per_class": 200,
+      "development_per_class": 300,
+      "confirmatory_per_class": 300,
+      "phash_distance": 3,
+      "hash_workers": 8,
+      "seeds": [
+        7,
+        17,
+        29,
+        43,
+        61
+      ],
+      "encoders": [
+        [
+          "clip_b32_224",
+          "open_clip",
+          "ViT-B-32-quickgelu",
+          "openai",
+          224,
+          128
+        ],
+        [
+          "clip_b16_224",
+          "open_clip",
+          "ViT-B-16-quickgelu",
+          "openai",
+          224,
+          96
+        ],
+        [
+          "clip_l14_336",
+          "open_clip",
+          "ViT-L-14-336-quickgelu",
+          "openai",
+          336,
+          24
+        ],
+        [
+          "siglip2_b16_384",
+          "transformers",
+          "google/siglip2-base-patch16-384",
+          "google",
+          384,
+          16
+        ]
+      ],
+      "num_workers": 0,
+      "budgets": [
+        20,
+        40,
+        80
+      ],
+      "default_budget": 40,
+      "topk_grid": [
+        3,
+        5,
+        10,
+        20
+      ],
+      "class_topk_grid": [
+        1,
+        3,
+        5,
+        10
+      ],
+      "alpha_grid": [
+        0.0,
+        0.25,
+        0.5,
+        0.75,
+        1.0
+      ],
+      "temperatures": [
+        0.02,
+        0.03,
+        0.05,
+        0.07,
+        0.1,
+        0.15,
+        0.2,
+        0.5,
+        1.0
+      ],
+      "reliability_power_grid": [
+        0.0,
+        0.5,
+        1.0,
+        2.0
+      ],
+      "reliability_weight_grid": [
+        [
+          1.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          1.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ],
+        [
+          0.5,
+          0.5,
+          0.0
+        ],
+        [
+          0.5,
+          0.0,
+          0.5
+        ],
+        [
+          0.0,
+          0.5,
+          0.5
+        ],
+        [
+          0.35,
+          0.4,
+          0.25
+        ],
+        [
+          0.45,
+          0.35,
+          0.2
+        ]
+      ],
+      "gate_slope_grid": [
+        -0.5,
+        -0.25,
+        0.0,
+        0.25,
+        0.5
+      ]
+    },
+    "encoder": {
+      "model_name": "siglip2_b16_384",
+      "pretrained": "frozen pretrained checkpoints"
+    }
+  },
+  "encoder": {
+    "model_name": "siglip2_b16_384",
+    "pretrained": "frozen pretrained checkpoints"
+  },
+  "environment": {
+    "python": "3.12.13 (main, Mar  4 2026, 09:23:07) [GCC 11.4.0]",
+    "platform": "Linux-6.12.90+-x86_64-with-glibc2.35",
+    "packages": {
+      "evidencemem": "0.2.0",
+      "numpy": "2.0.2",
+      "scikit-learn": "1.6.1",
+      "scipy": "1.16.3",
+      "torch": "2.10.0+cu128",
+      "torchvision": "0.25.0+cu128",
+      "open-clip-torch": "3.3.0",
+      "faiss-cpu": "1.15.0",
+      "pandas": "2.3.3"
+    },
+    "cuda_available": true,
+    "cuda_version": "12.8",
+    "gpu": "Tesla T4"
+  },
+  "artifacts": {
+    "calibration_ece.pdf": {
+      "sha256": "a7d7a96c3683a5f2787ae1a42853474291c68fc2b4ec17304219d6373b150ab8",
+      "bytes": 17355
+    },
+    "calibration_summary.csv": {
+      "sha256": "7d1f9aa3f7606ac37c76ccfdcd92db7e00dcdca5b5a27215e09043050c4dba89",
+      "bytes": 13729
+    },
+    "claim_gate.json": {
+      "sha256": "ca143277df1c9da136a11a4724787d357ac43598c09479b2fe4f95160bd06ed2",
+      "bytes": 5489
+    },
+    "classification_results.csv": {
+      "sha256": "a7d400dbfe4200139614ff3815b6abeed471e9323e1536f21564e78914142701",
+      "bytes": 24788
+    },
+    "classification_summary.csv": {
+      "sha256": "ace409e18f79ba694be4069ab46f882888c72e79a4b997f9ab9906f630db5934",
+      "bytes": 3740
+    },
+    "confirmatory_hypotheses.csv": {
+      "sha256": "f34056f000a4d00e426da56a62583b9ee73e6161a0e12122a5d6804083587340",
+      "bytes": 1360
+    },
+    "confirmatory_hypotheses.json": {
+      "sha256": "988ce176fd22c7a9bcf80fdd3f5465552f76057017f00dc5229920cee952a0a8",
+      "bytes": 3654
+    },
+    "development_selection.json": {
+      "sha256": "7235837a2f599bd5763d516fc512a61ca39efb10174ab2f003bafa04c5781762",
+      "bytes": 404
+    },
+    "encoder_deltas.csv": {
+      "sha256": "ae3a55f722f47b7b627c540ab43d8cf855d75c49ba8b1645bd71e220c4f098b6",
+      "bytes": 7066
+    },
+    "encoder_runtime.csv": {
+      "sha256": "d145d2e58e16a84dc97ca3b009ae498d338a1d330c18ee830c9a0ef2e176b884",
+      "bytes": 744
+    },
+    "environment.json": {
+      "sha256": "e7326bc17b16e13f054e88ea34259ca5dcb700c69cde4b34bb82ef075e330710",
+      "bytes": 2690
+    },
+    "frozen_protocol.json": {
+      "sha256": "c5f538783db2f427bc6d7a4e2f78e79e6ae74986bad6d4f28a2015460b7f833e",
+      "bytes": 1982
+    },
+    "fusion_topk_validation.csv": {
+      "sha256": "c94b557e208420dfef1eda45df6d1b9dbb5e6ada86cacf7ab7473076c7ffb3ea",
+      "bytes": 33889
+    },
+    "main_accuracy.pdf": {
+      "sha256": "4591082bd45582462c6241ece066193fd8ba15367353619d6078a30df2346dfe",
+      "bytes": 16721
+    },
+    "memory_budget_accuracy.pdf": {
+      "sha256": "7f65d6684ec5bd10c39732d464e96ab470c070a89f9e7e602c1a22722c9b99d8",
+      "bytes": 17912
+    },
+    "memory_budget_results.csv": {
+      "sha256": "9220563d9dec7f19765002ff7892c5fda50b8d89213ee269a397b4a799c8c70c",
+      "bytes": 13672
+    },
+    "memory_budget_summary.csv": {
+      "sha256": "13f108d048dca25d1c1dd5453760bae62e271923aafeb48fd32fab2e5e4dc5ec",
+      "bytes": 1283
+    },
+    "paired_tests.json": {
+      "sha256": "b42be16b743f5021f11bd72851ded5337d80695127de77dbf2fc8da3aec7d1d2",
+      "bytes": 15423
+    },
+    "qualitative_evidence.csv": {
+      "sha256": "3cc4564546c27a603923f59381c29730da0648ca7b2c73f5671dfb9d50f2e761",
+      "bytes": 1950
+    },
+    "reliability_tuning.csv": {
+      "sha256": "67a5f16c2f4cda9cdc8da8eaa24d89d385cfb743885025f6a659de2b140dc726",
+      "bytes": 50089
+    },
+    "sampling_summary.json": {
+      "sha256": "c15d5931d01b53f9a395266e18e81f95111e0fa8a7f7ef8f257f04e44697e4a7",
+      "bytes": 3162
+    },
+    "selected_hyperparameters.json": {
+      "sha256": "446caab25f5a0b41f3a00a128c16cb013a88989d68ac2a0da9faed4cb078695a",
+      "bytes": 5094
+    },
+    "uie22k_manifest.csv": {
+      "sha256": "aeb227bece6011d61b9e10f3ef2abdf146e2812da475eada368e09ac0e09ae4e",
+      "bytes": 4858223
+    }
+  }
+}

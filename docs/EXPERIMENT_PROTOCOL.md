@@ -1,156 +1,151 @@
-# Frozen experiment protocol
+# Frozen UIE-22K v4 experiment protocol
 
-## Primary question
+## Status
 
-Does reliability-aware facility selection improve a bounded real-image memory over an
-otherwise matched coverage-only selector?
+The confirmatory run is complete. The frozen protocol is `uie22k_evidencemem_v4`,
+revision `2.0.1`. The result source is
+`results/confirmatory/uie22k-v4-7ce2d2de/`.
 
-The comparison fixes the encoder, normalized embeddings, class split, candidate
-multiplier, final prototype count, prompt ensemble, validation set, retrieval rule, and
-hyperparameter search space. The treatment adds reliability to selection and voting.
+No parameter can be tuned on the confirmatory split after this run. A new hypothesis
+requires a new protocol and untouched data.
 
-## UIE-22K v4 confirmatory freeze
+## Questions
 
-The completed development run used manifest
-`f9eece5f3f489fd2b986ca89b797c2843e53e2618cd93361b730f0c77bff2c09` and selected
-`siglip2_b16_384` with EvidenceMem v4 continuous fusion. The confirmatory run is a
-separate notebook and may not change the following values:
+The protocol asks two questions:
 
-- protocol `uie22k_evidencemem_v4`, revision `2.0.1`;
-- package tree `9fec2b475fe962bd92fd8d6e496ec7bcc0b1835e`;
-- sample seed 2026 and memory seeds 7, 17, 29, 43, and 61;
-- 1,200 train, 200 validation, 300 development, and 300 confirmatory images per class;
-- encoder `siglip2_b16_384` and method `EvidenceMem v4 continuous fusion`; and
-- 40 stored images per class for the main comparison.
+1. Is a 40-image-per-class EvidenceMem non-inferior to full kNN at a predeclared
+   one-percentage-point margin?
+2. Does reliability-aware scoring improve an equal-count facility-selected memory?
 
-The primary confirmatory hypothesis is one-percentage-point non-inferiority to full kNN
-with 30 times fewer stored images. The secondary hypothesis is superiority over the
-equal-count facility-selection baseline. Decisions use a hierarchical paired bootstrap
-over seeds and examples. Per-seed exact McNemar tests and Benjamini-Hochberg-adjusted
-secondary comparisons remain supporting analyses. A negative result is final for this
-split; it may motivate a newly registered experiment but not more tuning here.
+The first question is primary. The second question is secondary. Both questions use the
+same frozen encoder, train split, validation split, confirmatory split, class balance,
+memory seeds, and image preprocessing.
 
-## Protocol levels
+## Frozen identifiers
 
-### Level 0: software validation
+- Protocol: `uie22k_evidencemem_v4`
+- Protocol revision: `2.0.1`
+- Data manifest:
+  `f9eece5f3f489fd2b986ca89b797c2843e53e2618cd93361b730f0c77bff2c09`
+- Development commit: `0b766243eb6352db067bde2815e4472cca0c6d2`
+- Development package tree: `9fec2b475fe962bd92fd8d6e496ec7bcc0b1835e`
+- Confirmatory source commit: `7ce2d2de4283a52c4a114352cfb9d211e0f9a426`
+- Frozen repository tag: `uie22k-v4-confirmatory-2026-09-02`
+- Sample seed: `2026`
+- Memory seeds: `7`, `17`, `29`, `43`, and `61`
+- Selected encoder: `google/siglip2-base-patch16-384`
+- Encoder key: `siglip2_b16_384`
+- Default memory budget: 40 images per class, 440 images total
 
-- Synthetic unit tests only.
-- Confirms exact budgets, serialization, score endpoints, tamper rejection, and manifest
-  finalization.
-- Supports no dataset-performance claim.
+## Data
 
-### Level 1: Colab validation mode
+The source is `rhtsingh/130k-images-512x512-universal-image-embeddings` on Kaggle.
+The experiment uses the image files and computes new SigLIP 2 embeddings. It does not use
+the supplied third-party embeddings.
 
-- One seed and bounded CIFAR subsets.
-- Runs every experiment and creates every required artifact.
-- Detects memory, runtime, and cross-cell failures.
-- Supports no final numerical claim.
+The 11 labels are apparel, artwork, cars, dishes, furniture, illustrations, landmark,
+meme, packaged, storefronts, and toys. Each label contributes:
 
-### Level 2: corrected full run
+- 1,200 training images;
+- 200 validation images;
+- 300 development images; and
+- 300 confirmatory images.
 
-- Seeds: 7, 17, and 29.
-- CIFAR-10: 45,000 train, 5,000 validation, 10,000 official test examples.
-- Secondary CIFAR-100 classification and CIFAR-100/SVHN OOD evaluation.
-- Full predeclared memory-budget, top-k, and text-weight grids.
-- This is the minimum evidence needed to decide whether the idea merits a paper draft.
+The final manifest contains 22,000 images. The duplicate audit found four exact
+duplicates, four within-label perceptual duplicates, and two cross-label perceptual
+duplicates in the sampled candidate pool. Those entries were not retained in the fixed
+split.
 
-### Level 3: strong archival submission
+Each source file is 512 by 512 pixels. The selected checkpoint uses its native
+384-by-384 preprocessing. The experiment is not a native 512-pixel encoder test.
 
-The CIFAR study alone is not broad enough for a highly selective archival venue. After a
-positive Level 2 gate, add at least:
+## Method under test
 
-- ImageNet-1K or a predeclared large-scale subset with public split indices;
-- natural distribution shifts such as ImageNet-V2, ImageNet-R, ImageNet-A, and
-  ImageNet-Sketch where licences and compute allow;
-- at least one additional encoder family or scale;
-- Tip-Adapter, CLIP-Adapter, and a current prototype/cache baseline implemented from
-  official code or checked equations; and
-- memory-build time, peak RAM/VRAM, warm query latency, and stored bytes.
+EvidenceMem v4 uses the following sequence for each memory seed:
 
-Level 3 must be a separate registered configuration. It must not be added selectively
-after seeing which datasets favour the method.
+1. Encode all images with the frozen SigLIP 2 image encoder.
+2. Normalize every embedding.
+3. Overcluster each class to twice the requested memory budget.
+4. Use the nearest real image to each cluster center as a candidate medoid.
+5. Select exactly 40 candidates per class with a coverage-only facility objective.
+6. Compute compactness, neighborhood purity, and text alignment for each selected
+   prototype.
+7. Select the reliability weights on validation data.
+8. Retrieve an equal top-k set inside every class.
+9. Apply the selected reliability power to class-conditional visual scores.
+10. Fuse visual and text probabilities with the selected fixed or continuous text weight.
+11. Select the calibration temperature on validation negative log likelihood.
+12. Evaluate the frozen configuration on the confirmatory split.
 
-## Data and split rules
+The treatment and facility control use the same prototype indices. Reliability changes
+scoring and fusion. It does not change prototype selection in v4.
 
-1. Persist stratified train/validation indices before tuning.
-2. Record source dataset versions and sample IDs.
-3. Use one embedding cache per exact model, checkpoint, preprocessing pipeline, split,
-   sample order, dtype, and source revision.
-4. Reject a cache whose array hashes or manifest fields differ.
-5. Never tune on official test labels.
-6. Use the same cached embeddings for every frozen-encoder method.
+## Baselines
 
-## Methods
+The default comparison includes:
 
-### Primary method
+- zero-shot text classification;
+- full similarity-weighted kNN;
+- a fixed linear probe;
+- random memory;
+- one nearest-to-centroid example per class;
+- K-means medoids;
+- equal-count facility selection without reliability;
+- the earlier v2 reliability-selection method;
+- global, visual-only, fixed-fusion, and continuous-fusion v4 variants; and
+- Tip-Adapter with the same cache size as the bounded memories.
 
-- Overcluster to twice the final class budget.
-- Score compactness, local purity, and text alignment.
-- Greedily select an exact budget with coverage weight 0.75 and reliability weight 0.25.
-- Use reliability-weighted visual voting.
-- Tune retrieval depth and text weight on validation data.
+Every method uses the same frozen embeddings. Validation data selects method-specific
+settings. Confirmatory labels do not select a method or parameter.
 
-### Required matched controls
+## Validation grids
 
-- Coverage-only facility selection with uniform visual voting.
-- Reliability-selected prototypes with uniform voting.
-- Coverage-only selected prototypes with reliability voting, if reliability values can be
-  assigned without changing selection.
-- Plain K-means medoids.
-- Random equal-count support memory.
-- Tip-Adapter with the same random support memory and count.
+- Full-kNN and global-retrieval depth: `3`, `5`, `10`, or `20`
+- Class-conditional depth: `1`, `3`, `5`, or `10` per class
+- Fixed text weight or continuous intercept: `0`, `0.25`, `0.5`, `0.75`, or `1`
+- Continuous gate slope: `-0.5`, `-0.25`, `0`, `0.25`, or `0.5`
+- Reliability power: `0`, `0.5`, `1`, or `2`
+- Calibration temperature: `0.02`, `0.03`, `0.05`, `0.07`, `0.10`, `0.15`, `0.20`,
+  `0.50`, or `1`
+- Memory budget curve: `20`, `40`, or `80` images per class
 
-### Context baselines
+The code resolves exact validation ties deterministically.
 
-- Frozen CLIP zero-shot.
-- Conventional similarity-weighted full kNN.
-- One centroid-nearest real example per class.
-- Fixed linear probe.
-- Supervised image model, reported separately because it changes the training regime.
+## Metrics
 
-## Tuning
+Classification metrics are top-1 accuracy, balanced accuracy, macro F1, negative log
+likelihood, Brier score, 15-bin expected calibration error, and area under the selective
+risk--coverage curve. Efficiency fields include stored-image count, prototype-build
+time, and scoring time per query.
 
-- Tune each memory method separately; do not reuse EvidenceMem’s selected values for its
-  baselines.
-- Break exact validation ties deterministically toward smaller (k), then smaller text
-  weight.
-- Select calibration temperature on validation negative log likelihood.
-- Tune Tip-Adapter beta and cache weight only on validation data.
-- Save the complete validation grid, not only its winner.
+Scoring time excludes image decoding, preprocessing, and encoder inference. The storage
+ratio counts source images. It does not compare serialized bytes.
 
-## Metrics and uncertainty
+## Hypothesis decisions
 
-Classification:
+The primary decision uses a hierarchical paired bootstrap with 5,000 draws. Each draw
+resamples memory seeds and then examples within each selected seed. Non-inferiority is
+supported only if the lower end of the 95% interval for EvidenceMem minus full kNN is
+greater than `-0.0100`.
 
-- top-1 accuracy, macro F1, NLL, and 15-bin ECE;
-- mean and standard deviation across stochastic seeds;
-- per-seed paired bootstrap intervals for accuracy differences; and
-- exact McNemar tests for predeclared primary comparisons.
+The secondary decision uses the same bootstrap structure. Superiority over facility
+selection is supported only if the lower interval bound is greater than zero.
 
-Efficiency:
+The primary result is -0.9818 points with a 95% interval of
+[-1.2850, -0.6788] points. The primary hypothesis is not supported. The secondary
+result is +0.1212 points with a 95% interval of [-0.1030, +0.3515] points. The secondary
+hypothesis is not supported.
 
-- stored image count and compression ratio;
-- serialized bytes and float32 vector bytes;
-- prototype construction time;
-- warm batch-one and batch-1,000 query latency; and
-- peak host and accelerator memory.
+## Completion criteria
 
-OOD analysis is secondary. Report AUROC, AUPR-OOD, and FPR95 for near and far shifts.
-Compare with text MSP, maximum prototype similarity, fused MSP, predictive entropy,
-probability margin, and an energy-style score. A losing score remains a negative result.
+The confirmatory release is complete because:
 
-Continual insertion is also secondary. Report old-class accuracy before and after,
-new-class accuracy, average accuracy, forgetting, insertion time, encoder updates, and a
-hash confirming that old prototypes were unchanged.
+- the frozen-protocol checks passed;
+- the classification and budget rows are complete;
+- all five seeds are present;
+- the paired statistics are present and finite;
+- the source run manifest has status `complete`;
+- the executed notebook contains no error output; and
+- the raw predictions reproduce the published metrics.
 
-## Run completion
-
-A run is complete only if all required CSV, JSON, prediction, figure, environment, and
-journal files exist and are hashed by `run_manifest.json`. Interrupted directories remain
-`status: running` and may not be cited.
-
-After copying a full archive into `results/corrected/<run-id>/`, run:
-
-```bash
-python scripts/check_submission_readiness.py
-```
+Run `python scripts/verify_confirmatory_release.py` to repeat the release audit.

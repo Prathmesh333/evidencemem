@@ -295,16 +295,6 @@ integrity_checks = {
 ''',
         label="claim gate results",
     )
-    value = replace_once(
-        value,
-        '    "uie22k_manifest.csv",\n',
-        '''    "uie22k_manifest.csv",
-    "frozen_protocol.json",
-    "confirmatory_hypotheses.csv",
-    "confirmatory_hypotheses.json",
-''',
-        label="required artifacts",
-    )
     set_source(cells[index], value)
 
 

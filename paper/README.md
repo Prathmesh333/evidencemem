@@ -1,64 +1,42 @@
-# Paper workspace
+# Research paper
 
-The paper is not ready for numerical drafting. The corrected full run must pass
-`scripts/check_submission_readiness.py` first. Until then, this directory contains the
-argument and table plan rather than invented prose or copied historical numbers.
+`main.tex` is a complete, venue-neutral research-paper draft. It uses only the verified
+UIE-22K v4 confirmatory release. The title, abstract, tables, discussion, limitations,
+broader-impact statement, appendix, and references are included.
 
-## Working title
+The paper makes one central contribution:
 
-**EvidenceMem: Reliability-Aware Facility Selection for Bounded Visual Memory**
+> A frozen and audited experiment shows that a 440-image reliability-weighted prototype
+> memory reaches 94.93% accuracy, 0.982 points below a 13,200-image kNN memory, but does
+> not pass the predeclared one-point non-inferiority test or show a clear gain over an
+> equal-count facility baseline.
 
-## One-sentence contribution
+This wording is deliberate. The point estimate is within one point, but the lower 95%
+confidence bound is -1.285 points. The draft does not call the method non-inferior. It
+also does not claim that reliability changes the selected prototypes in v4. The v4 run
+uses the same facility-selected support set for the treatment and matched control.
 
-EvidenceMem selects an exact budget of real-image medoids by greedily optimizing class
-coverage plus prototype reliability, and evaluates whether this selection improves a
-frozen vision-language memory over matched coverage-only and cache-adapter baselines.
+## Build
 
-## Paper argument
+Run this command inside the `paper` directory when `latexmk` is installed:
 
-1. Frozen vision-language embeddings make external memory attractive, but storing every
-   example is costly and plain clustering ignores whether a candidate is trustworthy.
-2. Candidate medoids are displayable real images. A coverage-plus-reliability objective
-   gives a precise selection rule under a fixed budget.
-3. The mathematical contribution is modest but clean: the objective is monotone
-   submodular, so exact-budget greedy selection has a standard approximation guarantee.
-4. The empirical question is whether the reliability term helps when memory count,
-   encoder, support pool, tuning, and scoring are matched.
-5. Evidence retrieval, fusion, class insertion, and OOD behaviour describe the method’s
-   operating characteristics. They are not separate novelty claims.
+```bash
+latexmk -pdf -interaction=nonstopmode -halt-on-error main.tex
+```
 
-## Planned sections
+Alternatively, run `pdflatex`, `bibtex`, and two additional `pdflatex` passes.
 
-1. Abstract: problem, exact method, strongest supported result, limitation.
-2. Introduction: bounded external memory and why selection reliability matters.
-3. Related work: cache adapters, prototype/coreset selection, retrieval evidence,
-   continual frozen representations, and OOD scoring.
-4. Method: candidates, reliability, set objective, greedy algorithm, voting, and cost.
-5. Experiments: primary matched comparison, strong baselines, budget curve, ablations,
-   scale/generalization, efficiency, and secondary analyses.
-6. Limitations: representation dependence, label dependence of purity, privacy, evidence
-   semantics, dataset scale, and unsuccessful hypotheses.
-7. Conclusion.
+The three PDF figures in `figures/` are copied byte-for-byte from the confirmatory
+release. The bibliography contains only references whose title, authors, venue or
+repository, year, and persistent identifier were checked against primary sources.
 
-## Predeclared tables and figures
+## Before submission
 
-- Table 1: classification and efficiency at the default matched memory budget.
-- Figure 1: accuracy versus stored images, with per-seed uncertainty.
-- Table 2: selection × voting × fusion ablation.
-- Table 3: results across datasets and encoder families after the large-scale extension.
-- Table 4: OOD and insertion analyses, clearly marked secondary.
-- Figure 2: retrieved evidence successes and failures selected by a fixed sampling rule.
+The draft is anonymous by default. Replace the author block only after you choose a venue
+and review its anonymity rules. Then apply that venue's official template without
+changing the result language.
 
-## Drafting gate
-
-Do not write an abstract result sentence, headline comparison, or conclusion until:
-
-- a corrected paper-mode manifest is complete;
-- the primary matched-ablation gate passes;
-- Tip-Adapter results are present at equal memory count;
-- per-example predictions support paired uncertainty;
-- the claim ledger is updated with exact artifact paths; and
-- at least one author manually checks a sample of raw predictions and figures.
-
-If the primary gate fails, rewrite the paper as a careful analysis of reliability failure
-modes or stop. Do not search for a favourable metric or dataset after the fact.
+The current evidence is not sufficient for a strong generalization claim. Before an
+archival submission, add a registered external-dataset experiment, a second encoder
+family, byte-level storage, encoder-inclusive latency, and a direct evidence-fidelity or
+human-audit measure. Do not tune the existing confirmatory split again.

@@ -1,0 +1,90 @@
+{
+  "archive": {
+    "crc_clean": true,
+    "duplicate_member_names": false,
+    "members": 91,
+    "sha256": "4b4525b8dba195233afb2d0bc473645b08b37295fcdb8898020e57f7ab023da4",
+    "source_manifest_artifacts_verified": 23,
+    "source_manifest_status": "complete"
+  },
+  "error_analysis": {
+    "largest_evidencemem_shortfalls_vs_full_knn": [
+      {
+        "class_id": 1,
+        "class_name": "artwork",
+        "evidencemem_accuracy": 0.7866666666666667,
+        "evidencemem_minus_facility_pp": -0.06666666666665932,
+        "evidencemem_minus_full_knn_pp": -4.999999999999993,
+        "examples_per_seed": 300,
+        "facility_accuracy": 0.7873333333333333,
+        "full_knn_accuracy": 0.8366666666666667
+      },
+      {
+        "class_id": 5,
+        "class_name": "illustrations",
+        "evidencemem_accuracy": 0.932,
+        "evidencemem_minus_facility_pp": -0.13333333333332975,
+        "evidencemem_minus_full_knn_pp": -2.1333333333333315,
+        "examples_per_seed": 300,
+        "facility_accuracy": 0.9333333333333333,
+        "full_knn_accuracy": 0.9533333333333334
+      },
+      {
+        "class_id": 9,
+        "class_name": "storefronts",
+        "evidencemem_accuracy": 0.9166666666666667,
+        "evidencemem_minus_facility_pp": 0.9333333333333305,
+        "evidencemem_minus_full_knn_pp": -0.9999999999999787,
+        "examples_per_seed": 300,
+        "facility_accuracy": 0.9073333333333334,
+        "full_knn_accuracy": 0.9266666666666665
+      }
+    ],
+    "most_common_evidencemem_confusions": [
+      {
+        "count_across_five_seeds": 132,
+        "predicted_class": "illustrations",
+        "true_class": "artwork"
+      },
+      {
+        "count_across_five_seeds": 89,
+        "predicted_class": "landmark",
+        "true_class": "artwork"
+      },
+      {
+        "count_across_five_seeds": 51,
+        "predicted_class": "meme",
+        "true_class": "artwork"
+      }
+    ]
+  },
+  "notebook": {
+    "cells": 23,
+    "code_cells": 14,
+    "error_outputs": 0,
+    "executed_code_cells": 14,
+    "execution_counts": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14
+    ],
+    "sha256": "647c6b61470d7826a5ae54c916c2a2e72832743ee8b937f77808f25ec973a22b"
+  },
+  "predictions": {
+    "classes": 11,
+    "examples_per_packet": 3300,
+    "maximum_recomputed_metric_error": 2.220446049250313e-16,
+    "prediction_packets": 65
+  }
+}

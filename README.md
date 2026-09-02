@@ -1,441 +1,211 @@
 # EvidenceMem
 
-EvidenceMem is a bounded visual memory for frozen vision-language encoders. It stores a
-small set of real training images, retrieves those images as decision evidence, combines
-visual retrieval with text-label scores, and can add labelled examples or classes without
-updating the encoder.
+EvidenceMem is a bounded visual memory for frozen vision--language encoders. It stores
+real training images as class prototypes. At inference time, it returns a class
+prediction and the retrieved prototypes that contributed to that prediction.
 
-The repository contains the reusable Python package, a Google Colab T4 experiment
-notebook, integrity checks, a venue-neutral paper plan, and the complete historical run
-that motivated the corrected protocol.
+This repository contains the method, unit tests, Kaggle notebooks, a completed
+confirmatory run, and a full research-paper draft. The result is useful but mixed:
+EvidenceMem preserves most of full-kNN accuracy with 30 times fewer stored images, but
+the predeclared non-inferiority and reliability-improvement hypotheses did not pass.
 
-## Current status
+## Confirmatory result
 
-The software and experiment protocol have been hardened, but the corrected full GPU run
-has not been completed yet. This distinction matters:
+The frozen experiment uses 22,000 images from 11 classes. Each source image is 512 by
+512 pixels. The selected SigLIP 2 encoder processes each image at 384 by 384 pixels.
+The split contains 13,200 training, 2,200 validation, 3,300 development, and 3,300
+confirmatory images.
 
-- The package test suite covers selection, scoring, serialization, cache tampering,
-  model-name resolution, hosted-notebook compatibility, and run manifests.
-- The clean notebook uses the same package code as the tests. It no longer contains a
-  second implementation of EvidenceMem.
-- The UIE-22K v4 notebook fixes the reliability-scale error found in the completed
-  224-vs-512 run and adds class-conditional scoring, continuous fusion, native encoder
-  comparisons, calibration checks, and a separate confirmatory split.
-- The old executed T4 notebook is preserved in [`results/`](results/) for transparency.
-  Its numbers are historical observations, not final paper evidence.
-- [`scripts/check_submission_readiness.py`](scripts/check_submission_readiness.py) blocks
-  paper claims until a corrected three-seed run and its hash manifest are present.
+| Method | Stored images | Confirmatory accuracy | Macro F1 | ECE |
+|---|---:|---:|---:|---:|
+| Linear probe | Not image-based | 96.67% | 96.66% | 1.18% |
+| Full kNN | 13,200 | 95.91% | 95.88% | 1.20% |
+| EvidenceMem v4 continuous fusion | 440 | 94.93% ± 0.22% | 94.88% ± 0.21% | 1.81% |
+| Facility selection without reliability | 440 | 94.81% ± 0.10% | 94.76% ± 0.10% | 1.87% |
+| K-means medoids | 440 | 94.53% ± 0.19% | 94.46% ± 0.19% | 2.54% |
+| Random memory | 440 | 92.77% ± 0.33% | 92.67% ± 0.33% | 3.37% |
+| Tip-Adapter with a matched cache | 440 | 91.58% ± 0.11% | 91.38% ± 0.13% | 4.10% |
+| Zero-shot text classifier | 0 | 87.97% | 87.69% | 32.49% |
 
-No repository can guarantee paper acceptance. The practical goal here is narrower: make
-the central claim falsifiable, compare it with the closest baselines, and leave enough raw
-evidence for another researcher or reviewer to audit the result.
+The values after `±` are standard deviations across five memory seeds. The linear probe,
+full kNN, and zero-shot classifier are deterministic for the frozen embeddings.
 
-## Start here
+The primary comparison is EvidenceMem minus full kNN. The mean difference is
+`-0.9818` accuracy points. Its hierarchical paired 95% interval is
+`[-1.2850, -0.6788]` points. The lower bound crosses the predeclared `-1.0`-point
+boundary. Therefore, this experiment does not establish non-inferiority.
 
-| Resource | Purpose |
-|---|---|
-| [`notebooks/EvidenceMem_Colab_T4.ipynb`](notebooks/EvidenceMem_Colab_T4.ipynb) | Clean end-to-end notebook for a Colab T4 |
-| [`notebooks/EvidenceMem_UIE22K_V4_T4.ipynb`](notebooks/EvidenceMem_UIE22K_V4_T4.ipynb) | Kaggle T4 experiment on the fixed 22,000-image UIE subset |
-| [`notebooks/EvidenceMem_UIE22K_V4_Confirmatory_T4.ipynb`](notebooks/EvidenceMem_UIE22K_V4_Confirmatory_T4.ipynb) | Hard-frozen Kaggle T4 confirmatory run for the selected SigLIP2 encoder |
-| [`results/`](results/) | Historical run, audit record, and location for corrected run archives |
-| [`src/evidencemem/`](src/evidencemem/) | Reusable implementation used by the notebook |
-| [`docs/EXPERIMENT_PROTOCOL.md`](docs/EXPERIMENT_PROTOCOL.md) | Frozen evaluation and reporting rules |
-| [`docs/CLAIM_LEDGER.md`](docs/CLAIM_LEDGER.md) | Claims, required evidence, and present status |
-| [`docs/ARTIFACT_INTEGRITY.md`](docs/ARTIFACT_INTEGRITY.md) | What is hashed, preserved, or excluded from claims |
-| [`paper/README.md`](paper/README.md) | Paper workspace and drafting gate |
+The secondary comparison is EvidenceMem minus the equal-count facility baseline. The
+mean difference is `+0.1212` points. Its 95% interval is `[-0.1030, +0.3515]` points.
+Therefore, this experiment does not establish a reliability-related accuracy gain.
 
-[Open the clean notebook in Google Colab](https://colab.research.google.com/github/Prathmesh333/evidencemem/blob/main/notebooks/EvidenceMem_Colab_T4.ipynb).
-If the repository is private, Colab may request GitHub access. Downloading the notebook
-and uploading it to Colab also works.
+## How the method works
 
-## Run the UIE-22K v4 experiment on Kaggle
+The current method has five stages:
 
-Use [`notebooks/EvidenceMem_UIE22K_V4_T4.ipynb`](notebooks/EvidenceMem_UIE22K_V4_T4.ipynb)
-for the 512×512-image follow-up. Add the Kaggle dataset
-`rhtsingh/130k-images-512x512-universal-image-embeddings`, turn Internet on and select a
-T4 GPU. The suggested ConvNeXt training notebook is optional; it does not contain the
-raw images.
+1. The frozen SigLIP 2 encoder maps each image to a normalized vector.
+2. Each class is overclustered to twice the requested memory budget.
+3. The nearest real image to each cluster center becomes a candidate prototype.
+4. A facility-coverage objective selects exactly 40 prototypes per class.
+5. Class-conditional retrieval combines visual scores, prototype reliability, and class
+   text scores. Validation data selects the scoring and fusion settings.
 
-The notebook keeps 2,000 deduplicated images from each of 11 classes, for 22,000 images
-in total. Its fixed manifest assigns 1,200 images per class to training, 200 to
-validation, 300 to development and 300 to confirmatory evaluation. The default
-development run compares four frozen encoders at their native 224, 336 or 384 pixel
-input size. It does not stretch a 224-pixel checkpoint to 512 again.
+Prototype reliability combines three signals:
 
-The completed development run selected `siglip2_b16_384`. Do not edit the development
-notebook into a test notebook. Use the separate
-[`EvidenceMem_UIE22K_V4_Confirmatory_T4.ipynb`](notebooks/EvidenceMem_UIE22K_V4_Confirmatory_T4.ipynb)
-file for the final run. It hard-freezes the selected encoder, 40-image-per-class memory
-budget, five seeds, protocol revision, package tree, and the exact development manifest
-hash. It refuses to continue if any frozen value changes. This keeps the final 3,300
-images out of model and method selection.
+- **Compactness:** similarity between a prototype and the members of its cluster.
+- **Neighborhood purity:** fraction of nearby training vectors with the same label.
+- **Text alignment:** similarity between the prototype and its prompted class text.
 
-The confirmatory notebook predeclares two decisions before opening the confirmatory
-split. The primary test asks whether the 440-image EvidenceMem is non-inferior to the
-13,200-image full kNN memory at a one-percentage-point margin. The secondary test asks
-whether reliability-aware continuous fusion beats the matched equal-count facility
-baseline. Both use hierarchical paired confidence intervals across the five memory
-seeds and 3,300 confirmatory examples. A failed hypothesis is saved as a valid result;
-it must not be followed by additional tuning on the same split.
-
-EvidenceMem v4 tests the changes suggested by the earlier result rather than assuming
-that larger images must help. It maps cosine compactness and text alignment to `[0, 1]`
-before combining them with purity, retrieves the same number of candidates inside every
-class, compares fixed and continuous visual-text fusion, and measures matched memory
-budgets of 20, 40 and 80 images per class. Every choice comes from validation data.
-
-Each run exports per-query predictions, encoder timing, selected settings, reliability
-tuning records, calibration before and after temperature scaling, selective accuracy,
-paired tests, budget curves, qualitative decision evidence, a file-hash manifest and a
-single ZIP archive. The confirmatory archive additionally includes
-`frozen_protocol.json` and `confirmatory_hypotheses.csv/json`, and the final claim gate
-checks every frozen value and expected statistical row. Development results can choose
-the final setup. Only the untouched confirmatory run can support final numerical claims.
-
-If Kaggle stops after an encoder has finished, add that failed notebook version's output
-as an input before rerunning. The notebook searches attached notebook outputs for caches
-and reuses one only when its hashes, sample IDs, split, model and preprocessing contract
-all match. This avoids recomputing finished OpenCLIP embeddings after a later failure.
+EvidenceMem v4 uses the same selected prototype indices as the coverage-only facility
+baseline. Reliability changes prototype scoring and visual--text fusion. It does not
+change the support set in the confirmatory run. This distinction prevents an incorrect
+claim that the current result validates reliability-aware prototype selection.
 
 ## How the idea developed
 
-The starting idea was a “vector database for classification”:
+The project started as a vector-database classifier. A query image retrieved labeled
+neighbors, and their labels determined the prediction. That design was simple but stored
+every support example and provided no fixed memory budget.
 
-```text
-image -> encoder -> nearest stored vector -> label
-```
+The next version replaced the full database with real-image medoids. Real images made
+the memory inspectable, while a fixed number of medoids controlled storage. An early
+method also used reliability during prototype selection. That version reached lower
+accuracy and did not produce a stable gain.
 
-That is useful engineering, but it is not enough for a research contribution. It stores
-too many examples, a single nearest neighbour is brittle, and the method says little
-about memory selection, unfamiliar inputs, or the role of the retrieved examples.
+Version 4 separates coverage from reliability. Facility selection fixes the real-image
+support set. Reliability then changes class-conditional retrieval and fusion. The
+confirmatory run tests whether this scoring mechanism improves the matched support set
+and whether 440 prototypes remain within one point of full kNN. Both hypotheses were
+decided with rules that were frozen before the confirmatory labels were evaluated.
 
-The next version compressed each class with K-means medoids. A medoid is an actual
-training image nearest to a cluster centre, so it can be displayed. The first T4 run then
-added reliability-weighted voting, CLIP text fusion, OOD scores, and class insertion.
-That run exposed a more important question: reliability did not help when it was applied
-only after plain medoids had already been selected.
+## Memory-budget behavior
 
-The current method moves reliability into the memory-construction objective. It first
-creates more candidate medoids than the final budget, then selects exactly the requested
-number by balancing coverage of the class distribution against candidate reliability.
-This creates a direct, controlled claim:
+The 40-image-per-class setting is the frozen confirmatory setting. The 20- and
+80-image settings are exploratory.
 
-> At an equal stored-image budget and with the same validation protocol, does
-> reliability-aware facility selection outperform coverage-only selection?
+| Images per class | Total stored | Compression vs. full kNN | Accuracy |
+|---:|---:|---:|---:|
+| 20 | 220 | 60× | 94.26% ± 0.14% |
+| 40 | 440 | 30× | 94.93% ± 0.22% |
+| 80 | 880 | 15× | 95.44% ± 0.17% |
 
-Everything else—fusion, evidence retrieval, insertion, and OOD analysis—is supporting
-evaluation rather than a bundle of unrelated novelty claims.
+At 80 images per class, the facility baseline reaches 95.53%. The current reliability
+mechanism does not improve every memory budget.
 
-## Method
+## Completed notebook and full results
 
-### 1. Frozen image and text representations
+The main release is in
+[`results/confirmatory/uie22k-v4-7ce2d2de/`](results/confirmatory/uie22k-v4-7ce2d2de/).
+It includes:
 
-The corrected notebook uses OpenCLIP `ViT-B-32-quickgelu` with the `openai` checkpoint.
-The QuickGELU model definition matches the activation used to train that checkpoint.
-Image and text vectors are L2-normalized float32 arrays, so cosine similarity is an inner
-product.
+- the complete executed Kaggle notebook;
+- the full run archive with all 65 raw prediction packets;
+- the frozen protocol and exact 22,000-image split manifest;
+- classification, calibration, memory-budget, and hypothesis tables;
+- per-class accuracy and confusion summaries;
+- PDF figures and a qualitative-evidence image; and
+- a SHA-256 manifest for every published release file.
 
-Each class-text vector is the normalized average of several prompt embeddings. The image
-encoder remains frozen in every EvidenceMem experiment.
+The executed notebook is
+[`EvidenceMem_UIE22K_V4_Confirmatory_T4_executed.ipynb`](results/confirmatory/uie22k-v4-7ce2d2de/EvidenceMem_UIE22K_V4_Confirmatory_T4_executed.ipynb).
+The unexecuted source notebook is
+[`notebooks/EvidenceMem_UIE22K_V4_Confirmatory_T4.ipynb`](notebooks/EvidenceMem_UIE22K_V4_Confirmatory_T4.ipynb).
 
-### 2. Candidate medoids
+The release audit checks the notebook, ZIP archive, source run manifest, and raw
+predictions. It independently recalculates accuracy, balanced accuracy, macro F1,
+negative log likelihood, Brier score, 15-bin ECE, and AURC. The largest observed
+difference from the published CSV values is `2.22e-16`.
 
-For each class, MiniBatchKMeans creates an overcomplete candidate set. Every centre is
-replaced by its nearest real training example. Candidates therefore retain source sample
-identities and can be rendered as evidence.
-
-For candidate (j), the reliability score combines:
-
-- cluster compactness (q_j),
-- local label purity (p_j), and
-- alignment (a_j) with the class-text vector.
-
-The default score is:
-
-\[
-r_j = 0.45q_j + 0.35p_j + 0.20a_j.
-\]
-
-Component inputs are mapped into bounded similarity ranges before the weighted average.
-
-### 3. Exact-budget selection
-
-For class examples (X_c), candidate medoids (V_c), and budget (B), the selector
-greedily maximizes:
-
-\[
-F(S) = \lambda_{cov}\frac{1}{|X_c|}
-       \sum_{x \in X_c}\max_{v \in S}\frac{1+x^\top v}{2}
-       + \lambda_{rel}\frac{1}{B}\sum_{v \in S}r_v,
-       \qquad |S|=B.
-\]
-
-The first term is facility-location coverage; the second is a modular reliability reward.
-Both terms are non-negative and monotone, so the objective is monotone submodular and the
-standard greedy cardinality solution has the usual (1-1/e) approximation guarantee.
-That is a property of the selection objective, not evidence that the method improves
-accuracy. The corrected GPU run must establish the empirical part.
-
-The default coefficients are `coverage_weight=0.75`,
-`reliability_weight=0.25`, with a `candidate_multiplier=2.0`.
-
-### 4. Retrieval and prediction
-
-For a query (z), the memory retrieves its top-(k) candidate vectors. Within the
-retrieved set, similarity weights are multiplied by prototype reliability and accumulated
-by class. This produces a normalized visual distribution (P_v(c\mid z)).
-
-The frozen text prototypes produce (P_t(c\mid z)). The final distribution is:
-
-\[
-P(c\mid z) = (1-\alpha)P_v(c\mid z) + \alpha P_t(c\mid z).
-\]
-
-`text_weight` is the canonical package name for (alpha). `0.0` is visual-only and
-`1.0` is text-only. The old ambiguous `fusion_weight` argument is deprecated.
-
-The prediction object contains the final, visual, and text scores; confidence components;
-an unknown flag; and the retrieved source images used by the visual rule.
-
-### 5. Updates and bounded memory
-
-The memory can:
-
-- merge a labelled example into a nearby same-class prototype,
-- insert a new prototype when it represents a different local mode,
-- add a class from a small labelled support set,
-- prune low-reliability, low-use entries while preserving a class floor, and
-- save and reload all prototypes and selection settings as a compressed NumPy archive.
-
-No update changes the frozen encoder.
-
-## Experiment design
-
-The notebook has two modes:
-
-- `validation` runs one seed on bounded subsets. It checks the complete pipeline but its
-  numbers must not be cited.
-- `paper` runs seeds 7, 17, and 29, the full 10,000-image CIFAR-10 test set, the complete
-  budget curve, secondary CIFAR-100 classification, OOD evaluation, class insertion,
-  evidence precision, ablations, and robustness checks.
-
-Every tunable fusion weight, retrieval depth, temperature, and Tip-Adapter coefficient is
-selected on the validation split. Test labels are used once for reporting.
-
-### Baselines
-
-The corrected protocol includes:
-
-- CLIP zero-shot,
-- conventional full similarity-weighted kNN,
-- one real centroid-nearest example per class,
-- random equal-budget memory,
-- plain K-means medoids,
-- coverage-only facility selection with uniform voting,
-- Tip-Adapter at the same stored-example budget,
-- a fixed linear probe, and
-- a separately labelled supervised ResNet-18 reference.
-
-The primary ablation differs from EvidenceMem only in the reliability term and reliability
-voting. All memory methods receive their own validation-selected (k) and text weight so
-one method is not favoured by another method’s hyperparameters.
-
-### Required reporting
-
-The full run exports:
-
-- per-seed metrics and summaries,
-- per-example predictions, probabilities, and scores,
-- selected validation hyperparameters,
-- equal-budget accuracy and latency curves,
-- paired bootstrap intervals and exact McNemar tests,
-- OOD AUROC, AUPR, and FPR95,
-- continual insertion metrics,
-- evidence precision and qualitative examples,
-- environment details and `pip freeze`, and
-- a run manifest containing a hash for every required artifact.
-
-The claim gate requires the reliability-aware selector to beat the matched coverage-only
-selector on at least half of the tested budgets, plus at least one supporting signal. If
-that condition fails, the project must narrow or become an analysis/negative-result paper.
-
-## Historical T4 observations
-
-The complete first run remains at [`results/evidencemem.ipynb`](results/evidencemem.ipynb).
-It ran on a Tesla T4 with seeds 7, 17, and 29. These values explain why the protocol was
-changed; they are not final results:
-
-| Historical method or condition | Observation |
-|---|---:|
-| CIFAR-10 EvidenceMem fused accuracy | 89.58% mean |
-| CIFAR-10 CLIP zero-shot accuracy | 85.25% |
-| CIFAR-10 plain medoid accuracy | 86.09% mean |
-| CIFAR-10 linear-probe accuracy | 93.84% |
-| CIFAR-100 EvidenceMem fused accuracy | 66.73% mean |
-| CIFAR-100 linear-probe accuracy | 74.85% |
-
-That run also found that reliability-weighted visual voting underperformed unweighted
-medoid voting at the default budget, and the proposed disagreement-aware OOD score lost
-to predictive entropy. Those negative observations are preserved rather than hidden.
-
-The notebook is excluded from final claims because it used the non-QuickGELU OpenCLIP
-model definition with OpenAI weights, emitted repeated DataLoader child-process errors,
-duplicated the method inside the notebook, lacked the closest cache baseline, and did not
-produce a complete hash manifest. See
-[`results/legacy_t4_summary.json`](results/legacy_t4_summary.json) for the audit record.
-
-## Run on Google Colab
-
-1. Open [`notebooks/EvidenceMem_Colab_T4.ipynb`](notebooks/EvidenceMem_Colab_T4.ipynb) in
-   Colab.
-2. Select **Runtime → Change runtime type → T4 GPU**.
-3. Leave `RUN_MODE = "validation"` and run all cells.
-4. Download the generated validation archive and inspect `claim_validation.json` and
-   `run_manifest.json`.
-5. Set `RUN_MODE = "paper"`, restart the runtime, and run all cells.
-6. Unzip the completed archive into `results/corrected/<run-id>/`.
-7. Run `python scripts/check_submission_readiness.py` locally.
-
-Set `USE_GOOGLE_DRIVE = True` if caches must survive Colab session resets. The notebook
-uses `num_workers=0` deliberately because forked DataLoader workers caused cleanup errors
-in the historical Colab runtime.
-
-## Install locally
-
-Core package:
+Run the audit from the repository root:
 
 ```bash
-python -m pip install -e .
+python scripts/verify_confirmatory_release.py
 ```
 
-Vision and analysis dependencies:
+## Run the confirmatory notebook on Kaggle
 
-```bash
-python -m pip install -e ".[vision,analysis]"
-```
+Use the committed source notebook only if you need to reproduce the frozen run. Do not
+change its encoder, split, memory budget, seeds, or hypotheses.
 
-Development checks:
+1. Upload `notebooks/EvidenceMem_UIE22K_V4_Confirmatory_T4.ipynb` to Kaggle.
+2. Select a GPU T4 accelerator and enable Internet access.
+3. Add the dataset `rhtsingh/130k-images-512x512-universal-image-embeddings`.
+4. Optionally add the successful development notebook as an input. The notebook can
+   reuse verified training and validation caches.
+5. Select **Run All** once.
+6. Download the generated run ZIP after the claim gate reports a complete run.
+
+The notebook uses one GPU even if Kaggle supplies two T4 devices. It sets the data-loader
+worker count to zero and uses a batch size of 16 for SigLIP 2. These settings match the
+completed run and avoid the worker and memory failures found in older notebooks.
+
+## Local installation and tests
+
+The core package does not require a GPU.
 
 ```bash
 python -m pip install -e ".[dev]"
 python -m pytest
 python -m ruff check src tests scripts
-python scripts/validate_artifacts.py
 ```
 
-The core tests do not download datasets or model weights.
-
-## Minimal package example
-
-```python
-import numpy as np
-
-from evidencemem import EvidenceMemClassifier, EvidenceMemory, SelectionConfig
-
-# Rows are frozen, normalized image embeddings.
-train_embeddings = np.asarray(..., dtype=np.float32)
-train_labels = np.asarray(..., dtype=np.int64)
-text_prototypes = {
-    0: np.asarray(..., dtype=np.float32),
-    1: np.asarray(..., dtype=np.float32),
-}
-
-memory = EvidenceMemory(
-    selection_config=SelectionConfig(
-        candidate_multiplier=2.0,
-        coverage_weight=0.75,
-        reliability_weight=0.25,
-    )
-).build(
-    train_embeddings,
-    train_labels,
-    class_names={0: "cat", 1: "dog"},
-    prototypes_per_class=20,
-    sample_ids=[str(index) for index in range(len(train_labels))],
-    text_prototypes=text_prototypes,
-    duplicate_threshold=None,
-)
-
-classifier = EvidenceMemClassifier(
-    memory,
-    text_prototypes,
-    text_weight=0.25,
-)
-prediction = classifier.predict_embedding(np.asarray(..., dtype=np.float32), k=10)
-
-print(prediction.class_name, prediction.confidence, prediction.is_unknown)
-for item in prediction.evidence:
-    print(item.sample_id, item.class_name, item.similarity, item.reliability)
-```
-
-## Artifact integrity
-
-Embedding caches have adjacent schema-versioned manifests. Loading verifies sample
-identity, shapes, dtype, normalization status, and SHA-256 hashes of the embedding and
-label arrays. Old unverified caches are rejected instead of silently reused.
-
-The notebook writes into a versioned protocol directory and only marks a run complete
-after every required output exists. `run_manifest.json` records the git revision, resolved
-encoder, full configuration, package environment, file sizes, and SHA-256 hashes.
-
-Run the static audit at any time:
+Install the optional vision and analysis dependencies when you need the full experiment
+stack:
 
 ```bash
-python scripts/validate_artifacts.py
+python -m pip install -e ".[vision,analysis,dev]"
 ```
 
-It rejects the known failure modes from the first run: a mismatched OpenCLIP definition,
-float16 embedding caches, notebook-local K-means fitting, multi-worker Colab loading,
-retained outputs in the clean source notebook, or package-version drift.
+Python 3.11 or later is required. The completed Kaggle run used Python 3.12.13,
+PyTorch 2.10.0, torchvision 0.25.0, scikit-learn 1.6.1, FAISS 1.15.0, and one Tesla T4.
 
-## Repository layout
+## Repository structure
 
 ```text
-.
-├── configs/
-│   └── cifar10.yaml
-├── docs/
-│   ├── ARTIFACT_INTEGRITY.md
-│   ├── CLAIM_LEDGER.md
-│   ├── EXPERIMENT_PROTOCOL.md
-│   ├── LITERATURE_MAP.md
-│   └── RESEARCH_PLAN.md
-├── notebooks/
-│   ├── EvidenceMem_Colab_T4.ipynb
-│   ├── EvidenceMem_UIE22K_V4_T4.ipynb
-│   └── EvidenceMem_UIE22K_V4_Confirmatory_T4.ipynb
-├── paper/
-│   └── README.md
-├── results/
-│   ├── corrected/
-│   ├── evidencemem.ipynb
-│   ├── legacy_t4_summary.json
-│   └── README.md
-├── scripts/
-│   ├── check_submission_readiness.py
-│   ├── build_uie22k_confirmatory_notebook.py
-│   ├── build_uie22k_notebook.py
-│   ├── extract_embeddings.py
-│   ├── notebook_cells/
-│   ├── smoke_core.py
-│   └── validate_artifacts.py
-├── src/evidencemem/
-└── tests/
+src/evidencemem/       Reusable prototype-memory, scoring, cache, and artifact code
+tests/                 Unit and notebook-structure tests
+notebooks/             Clean development and frozen confirmatory notebooks
+scripts/               Notebook builders, validators, and release audit
+results/               Historical runs and the verified confirmatory release
+paper/                 Venue-neutral LaTeX paper, references, and figures
+docs/                  Protocol, claim ledger, integrity policy, and experiment journal
 ```
 
-## What EvidenceMem does not claim
+## Paper
 
-- It does not invent CLIP, vector search, K-means, kNN, cache adaptation, or prototype
-  explanations.
-- Retrieved images are evidence used by the explicit decision rule. They are not a
-  causal explanation of the encoder’s internal representation.
-- CIFAR experiments do not establish web-scale, medical, safety-critical, or production
-  performance.
-- OOD detection and class insertion remain evaluated capabilities, not established
-  contributions unless they beat their predeclared baselines.
-- The objective’s greedy approximation guarantee does not imply better classification.
-- Historical output does not become valid merely because it is reproducible.
+[`paper/main.tex`](paper/main.tex) is a full venue-neutral draft. The paper treats the
+failed hypotheses as results. It does not claim that EvidenceMem is non-inferior to full
+kNN or that reliability improves accuracy. The draft also states the main limits: one
+selected encoder, one 11-class subset, five stochastic seeds, image-count rather than
+byte-level storage, and scoring times that exclude encoder inference.
 
-## Licence
+## What the evidence supports
 
-MIT. See [`LICENSE`](LICENSE).
+The completed experiment supports these statements:
+
+- A 440-image prototype memory reaches 94.93% mean accuracy on the frozen split.
+- The memory stores 30 times fewer source images than full kNN.
+- The accuracy point estimate is 0.982 points below full kNN.
+- The tested reliability-aware scoring does not show a clear gain over matched facility
+  selection.
+- Most of the kNN shortfall occurs in artwork, illustrations, and storefronts.
+
+The experiment does not support these statements:
+
+- EvidenceMem is non-inferior to full kNN at a one-point margin.
+- Reliability-aware scoring is more accurate than coverage-only facility selection.
+- The retrieved images are causal explanations.
+- The result generalizes to other datasets, encoders, or native 512-pixel models.
+
+## Next experiment
+
+Do not tune the current confirmatory split again. Register a new experiment on an
+untouched dataset. The next study should isolate class-conditional scoring, reliability
+weighting, and text fusion in a small factorial ablation. It should also report stored
+bytes, encoder-inclusive latency, a second encoder family, and an evidence-fidelity or
+human-audit measure.
+
+## License
+
+The repository code is available under the [MIT License](LICENSE). Dataset files and
+pretrained model weights retain their original licenses and are not redistributed here.

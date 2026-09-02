@@ -1,0 +1,227 @@
+{
+  "siglip2_b16_384_s7": {
+    "standard_methods": {
+      "Random memory": {
+        "alpha": 0.75,
+        "k": 10
+      },
+      "Centroid": {
+        "alpha": 0.75,
+        "k": 10
+      },
+      "KMeans medoids": {
+        "alpha": 0.75,
+        "k": 10
+      },
+      "Facility selection (no reliability)": {
+        "alpha": 0.75,
+        "k": 10
+      },
+      "EvidenceMem v2 selection": {
+        "alpha": 0.75,
+        "k": 5
+      }
+    },
+    "evidencemem_v4": {
+      "variant": "class_conditional_continuous_fusion",
+      "reliability_weights": {
+        "compactness": 1.0,
+        "purity": 0.0,
+        "alignment": 0.0
+      },
+      "class_k": 5,
+      "reliability_power": 0.0,
+      "reliability_mean": 0.8853546380996704,
+      "reliability_std": 0.018071262165904045,
+      "fixed_alpha": 0.25,
+      "continuous_intercept": 0.25,
+      "continuous_slope": 0.0,
+      "global_setting": {
+        "alpha": 0.75,
+        "k": 10
+      }
+    },
+    "full_knn_k": 10,
+    "linear_probe_c": 10.0
+  },
+  "siglip2_b16_384_s17": {
+    "standard_methods": {
+      "Random memory": {
+        "alpha": 0.75,
+        "k": 20
+      },
+      "Centroid": {
+        "alpha": 0.75,
+        "k": 10
+      },
+      "KMeans medoids": {
+        "alpha": 0.75,
+        "k": 10
+      },
+      "Facility selection (no reliability)": {
+        "alpha": 0.25,
+        "k": 10
+      },
+      "EvidenceMem v2 selection": {
+        "alpha": 0.75,
+        "k": 3
+      }
+    },
+    "evidencemem_v4": {
+      "variant": "class_conditional_continuous_fusion",
+      "reliability_weights": {
+        "compactness": 0.0,
+        "purity": 0.0,
+        "alignment": 1.0
+      },
+      "class_k": 10,
+      "reliability_power": 1.0,
+      "reliability_mean": 0.5491036772727966,
+      "reliability_std": 0.003937423694878817,
+      "fixed_alpha": 0.0,
+      "continuous_intercept": 0.0,
+      "continuous_slope": -0.25,
+      "global_setting": {
+        "alpha": 0.5,
+        "k": 10
+      }
+    },
+    "full_knn_k": 10,
+    "linear_probe_c": 10.0
+  },
+  "siglip2_b16_384_s29": {
+    "standard_methods": {
+      "Random memory": {
+        "alpha": 0.5,
+        "k": 5
+      },
+      "Centroid": {
+        "alpha": 0.75,
+        "k": 10
+      },
+      "KMeans medoids": {
+        "alpha": 0.75,
+        "k": 5
+      },
+      "Facility selection (no reliability)": {
+        "alpha": 0.25,
+        "k": 10
+      },
+      "EvidenceMem v2 selection": {
+        "alpha": 0.75,
+        "k": 10
+      }
+    },
+    "evidencemem_v4": {
+      "variant": "class_conditional_continuous_fusion",
+      "reliability_weights": {
+        "compactness": 0.45,
+        "purity": 0.35,
+        "alignment": 0.2
+      },
+      "class_k": 5,
+      "reliability_power": 0.5,
+      "reliability_mean": 0.8359166383743286,
+      "reliability_std": 0.020527813583612442,
+      "fixed_alpha": 0.0,
+      "continuous_intercept": 0.0,
+      "continuous_slope": 0.0,
+      "global_setting": {
+        "alpha": 0.5,
+        "k": 10
+      }
+    },
+    "full_knn_k": 10,
+    "linear_probe_c": 10.0
+  },
+  "siglip2_b16_384_s43": {
+    "standard_methods": {
+      "Random memory": {
+        "alpha": 0.75,
+        "k": 10
+      },
+      "Centroid": {
+        "alpha": 0.75,
+        "k": 10
+      },
+      "KMeans medoids": {
+        "alpha": 0.75,
+        "k": 10
+      },
+      "Facility selection (no reliability)": {
+        "alpha": 0.75,
+        "k": 10
+      },
+      "EvidenceMem v2 selection": {
+        "alpha": 0.75,
+        "k": 5
+      }
+    },
+    "evidencemem_v4": {
+      "variant": "class_conditional_continuous_fusion",
+      "reliability_weights": {
+        "compactness": 1.0,
+        "purity": 0.0,
+        "alignment": 0.0
+      },
+      "class_k": 5,
+      "reliability_power": 0.5,
+      "reliability_mean": 0.8842058181762695,
+      "reliability_std": 0.01774311624467373,
+      "fixed_alpha": 0.25,
+      "continuous_intercept": 0.25,
+      "continuous_slope": 0.0,
+      "global_setting": {
+        "alpha": 0.5,
+        "k": 10
+      }
+    },
+    "full_knn_k": 10,
+    "linear_probe_c": 10.0
+  },
+  "siglip2_b16_384_s61": {
+    "standard_methods": {
+      "Random memory": {
+        "alpha": 0.75,
+        "k": 5
+      },
+      "Centroid": {
+        "alpha": 0.75,
+        "k": 10
+      },
+      "KMeans medoids": {
+        "alpha": 0.75,
+        "k": 10
+      },
+      "Facility selection (no reliability)": {
+        "alpha": 0.0,
+        "k": 5
+      },
+      "EvidenceMem v2 selection": {
+        "alpha": 0.75,
+        "k": 5
+      }
+    },
+    "evidencemem_v4": {
+      "variant": "class_conditional_continuous_fusion",
+      "reliability_weights": {
+        "compactness": 0.0,
+        "purity": 0.0,
+        "alignment": 1.0
+      },
+      "class_k": 3,
+      "reliability_power": 2.0,
+      "reliability_mean": 0.5483815670013428,
+      "reliability_std": 0.004973602946847677,
+      "fixed_alpha": 0.0,
+      "continuous_intercept": 0.0,
+      "continuous_slope": 0.0,
+      "global_setting": {
+        "alpha": 0.0,
+        "k": 5
+      }
+    },
+    "full_knn_k": 10,
+    "linear_probe_c": 10.0
+  }
+}

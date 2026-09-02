@@ -1,65 +1,89 @@
 # Artifact integrity policy
 
-## Why the old run is retained
+## Evidence levels
 
-The first T4 notebook produced useful observations, but it also exposed protocol and
-implementation defects. Deleting it would hide that history; silently replacing it would
-make the record impossible to audit. It therefore remains unchanged at
-`results/evidencemem.ipynb`, accompanied by a SHA-256 digest and a machine-readable issue
-list in `results/legacy_t4_summary.json`.
+The repository uses three evidence levels:
 
-The file is labelled `historical_invalid_for_final_claims`. It may be discussed as the
-reason for redesigning the method, but it is not a source for final tables.
+1. **Historical:** useful for project history, but invalid for final claims.
+2. **Development:** valid for method and encoder selection, but not for final claims.
+3. **Confirmatory:** frozen before evaluation and valid for a final claim decision.
 
-## Source notebook rules
+The UIE-22K v4 release is confirmatory. The first T4 notebook remains historical. The
+repository does not delete or overwrite historical results.
 
-The clean notebook:
+## Source notebook
 
-- contains no retained execution counts or outputs;
-- installs and imports the repository package;
-- uses the activation-compatible OpenCLIP model name;
-- uses one DataLoader process on Colab;
-- stores verified float32 embeddings;
-- includes the matched selector and cache baselines; and
-- writes a complete run manifest only after required outputs exist.
+The frozen confirmatory notebook contains these safeguards:
 
-`scripts/validate_artifacts.py` enforces these rules statically.
+- an immutable repository tag;
+- a fixed package-tree hash;
+- a fixed data-manifest identifier;
+- a fixed SigLIP 2 encoder and 384-pixel preprocessing path;
+- a fixed 40-image-per-class memory budget;
+- fixed memory seeds and hypotheses;
+- zero data-loader worker processes; and
+- no environment override for the confirmatory split or encoder.
 
-## Embedding cache manifest
+Every code cell in the clean source notebook has no output and no execution count. The
+published executed notebook has 14 code cells with execution counts 1 through 14 and no
+error output.
 
-Schema version 2 records:
+## Data and embedding provenance
 
-- dataset and split labels;
-- resolved model and pretrained checkpoint;
-- preprocessing fingerprint and source revision;
-- row count, dimension, dtype, and normalization status; and
-- SHA-256 hashes over embeddings, labels, and ordered sample IDs.
+The split manifest records the dataset slug, class label, relative source path, SHA-256,
+perceptual hash, dimensions, file size, split, sample identifier, and manifest row. The
+manifest fixes 22,000 unique retained images.
 
-The array hash includes dtype and shape. A reordered, converted, truncated, or edited
-array is rejected on load. Earlier unverified cache schemas must be regenerated.
+An embedding cache records the model, checkpoint, preprocessing fingerprint, source
+revision, row count, vector dimension, data type, normalization state, sample order, and
+array hashes. The loader rejects a reordered, converted, truncated, or edited array.
 
-## Run manifest
+## Source run manifest
 
-`run_manifest.json` records the full experiment and encoder configuration, configuration
-hash, git revision, UTC start and completion times, environment snapshot, and hashes and
-sizes for every required artifact.
+The original confirmatory `run_manifest.json` records the experiment configuration,
+environment, source revision, start and completion time, and hashes for 23 required
+files. The release verifier checks each file both inside the original ZIP and in the
+published result directory.
 
-The lifecycle is:
+The original manifest did not list 65 raw prediction packets, the qualitative PNG, or
+the final journal line. Those files were present and valid, but the omission created a
+publication-integrity gap. The repository addresses the gap in two ways:
 
-```text
-start -> status: running -> write incremental outputs -> verify required files
-      -> hash outputs -> status: complete
+1. `release_manifest.json` hashes every file published in the confirmatory release,
+   including the complete source ZIP and executed notebook.
+2. The updated notebook export cell writes the completion event before finalization and
+   hashes every top-level run file. Future run manifests will therefore include raw
+   predictions, qualitative figures, and the final journal.
+
+The original ZIP remains unchanged. Its SHA-256 is
+`4b4525b8dba195233afb2d0bc473645b08b37295fcdb8898020e57f7ab023da4`.
+
+## Independent release audit
+
+Run this command from the repository root:
+
+```bash
+python scripts/verify_confirmatory_release.py
 ```
 
-A crash before finalization leaves the run in `running` state. The result archive also
-contains `pip_freeze.txt` so exact versions can be recovered after Colab changes its base
-image.
+The audit performs these checks:
 
-## What remains outside the manifest
+- verify every release-level file hash and byte count;
+- verify the ZIP CRC and member-name uniqueness;
+- verify all source-manifest hashes;
+- inspect notebook execution counts and error outputs;
+- load all 65 prediction packets;
+- verify array shapes, finite values, probability sums, and prediction argmax; and
+- recompute every classification metric that the stored predictions support.
 
-Downloaded datasets and pretrained weights are not copied into the repository. Their
-public identifiers and resolved model names are recorded, but future large-scale runs
-should also record upstream checksums where the provider publishes them.
+The maximum difference between the recomputed metrics and published CSV values is
+`2.22e-16`.
 
-Google Drive and Colab are external systems. Users should keep the generated zip archive
-and verify its extracted files against `run_manifest.json` after transfer.
+## External dependencies
+
+The release does not redistribute the Kaggle dataset or pretrained model weights. It
+records the public dataset slug and model identifier. Future releases should also record
+an upstream checksum when the provider publishes one.
+
+Kaggle and the model host are external systems. Keep the committed release and verify
+its hashes after any transfer.

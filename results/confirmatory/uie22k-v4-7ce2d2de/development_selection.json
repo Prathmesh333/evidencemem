@@ -1,0 +1,9 @@
+{
+  "evaluation_stage": "confirmatory",
+  "evaluation_split": "confirmatory",
+  "selected_encoder_key": "siglip2_b16_384",
+  "selection_method": "EvidenceMem v4 continuous fusion",
+  "selection_rule": "highest mean development accuracy; macro-F1, ECE, then key break ties",
+  "frozen_for_confirmatory": true,
+  "warning": "This run evaluates the pre-frozen encoder on the untouched confirmatory split."
+}

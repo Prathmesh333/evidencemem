@@ -180,38 +180,28 @@ if not run_complete:
     failed = [name for name, passed in integrity_checks.items() if not passed]
     raise RuntimeError(f"Run integrity gate failed: {failed}")
 
-required_artifacts = [
-    "uie22k_manifest.csv",
-    "sampling_summary.json",
-    "environment.json",
-    "encoder_runtime.csv",
-    "classification_results.csv",
-    "classification_summary.csv",
-    "calibration_summary.csv",
-    "fusion_topk_validation.csv",
-    "reliability_tuning.csv",
-    "selected_hyperparameters.json",
-    "development_selection.json",
-    "paired_tests.json",
-    "encoder_deltas.csv",
-    "memory_budget_results.csv",
-    "memory_budget_summary.csv",
-    "qualitative_evidence.csv",
-    "main_accuracy.pdf",
-    "memory_budget_accuracy.pdf",
-    "calibration_ece.pdf",
-    "claim_gate.json",
-]
+# Record the completion event before finalization so the archived journal is the
+# same byte sequence covered by the run manifest.  Earlier releases appended
+# this event after the zip was built, which left the loose and archived journals
+# one line apart.
+archive_path = RUN_DIR.with_suffix(".zip")
+journal("run_complete", archive=str(archive_path), results=result_summary)
+
+# Hash every top-level result, including all per-example prediction arrays and
+# qualitative figures.  The original v4 release used a hand-maintained list and
+# therefore omitted those files even though the archive itself was intact.
+required_artifacts = sorted(
+    path.name
+    for path in RUN_DIR.iterdir()
+    if path.is_file() and path.name != "run_manifest.json"
+)
 completed_manifest = finalize_run_manifest(
     RUN_MANIFEST,
     run_directory=RUN_DIR,
     required_artifacts=required_artifacts,
 )
 atomic_write_json(RUN_DIR / "run_manifest.json", completed_manifest)
-archive_path = Path(
-    shutil.make_archive(str(RUN_DIR), "zip", root_dir=RUN_DIR)
-)
-journal("run_complete", archive=str(archive_path), results=result_summary)
+archive_path = Path(shutil.make_archive(str(RUN_DIR), "zip", root_dir=RUN_DIR))
 print(json.dumps(claim_gate, indent=2))
 print("Complete artifact directory:", RUN_DIR)
 print("Downloadable archive:", archive_path)

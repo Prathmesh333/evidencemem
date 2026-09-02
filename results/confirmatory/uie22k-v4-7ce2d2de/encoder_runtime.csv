@@ -1,0 +1,4 @@
+encoder_key,backend,resolution,split,cache_hit,cache_source,seconds,images_per_second,peak_vram_gb,batch_size
+siglip2_b16_384,transformers,384,train,False,/kaggle/working/EvidenceMem/cache/uie22k_evidencemem_v4/uie22k_train_siglip2_b16_384_811c27a937240741.npz,283.752264986,46.51945245494788,0.9241456985473633,16
+siglip2_b16_384,transformers,384,val,False,/kaggle/working/EvidenceMem/cache/uie22k_evidencemem_v4/uie22k_val_siglip2_b16_384_9b9480cf856d254b.npz,48.50305431400011,45.357968299431064,0.9241456985473633,16
+siglip2_b16_384,transformers,384,confirmatory,False,/kaggle/working/EvidenceMem/cache/uie22k_evidencemem_v4/uie22k_confirmatory_siglip2_b16_384_2c91b37911deb51b.npz,72.46758667600011,45.53760034474692,0.9241456985473633,16

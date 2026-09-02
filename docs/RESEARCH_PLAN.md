@@ -1,74 +1,84 @@
 # EvidenceMem research plan
 
-## Research question
+## Completed study
 
-At a fixed memory budget, can reliability-aware facility selection choose better
-displayable prototypes than an otherwise matched coverage-only selector?
+The UIE-22K v4 confirmatory study is complete. A 440-image memory reached 94.9273%
+accuracy. Full kNN reached 95.9091% with 13,200 stored images. The primary
+non-inferiority rule did not pass because the 95% interval crossed the predeclared
+one-point boundary.
 
-This is an empirical hypothesis. The repository currently verifies the implementation
-and the set-objective structure, not the accuracy claim.
+Reliability-aware scoring exceeded matched facility selection by 0.1212 accuracy points.
+The 95% interval included zero. The secondary superiority rule did not pass.
+
+These results close the current protocol. Do not tune the confirmatory split again.
+
+## Next research question
+
+On a new dataset, does class-conditional prototype scoring improve a coverage-selected
+memory? If it does, does reliability weighting add a measurable gain after support set,
+retrieval depth, and text fusion are matched?
+
+This sequence isolates two mechanisms that v4 combined. It also responds to the current
+result: continuous fusion differed from fixed fusion by only 0.0061 accuracy points, and
+four of five validation runs selected a zero gate slope.
 
 ## Contribution boundary
 
-EvidenceMem does not claim novelty for CLIP, vector search, K-means, medoids, kNN,
-prompt ensembling, cache fusion, or retrieving examples. The proposed contribution is the
-specific exact-budget selection objective over real-image medoid candidates and a
-controlled evaluation of its reliability term.
+EvidenceMem does not claim novelty for a frozen vision--language encoder, vector search,
+K-means, medoids, kNN, prompt ensembling, cache fusion, or retrieved examples. The next
+study can claim a scoring contribution only if a registered, matched ablation supports
+that mechanism on untouched data.
 
-The paper must compare against Tip-Adapter and other close cache/prototype methods. If the
-matched coverage-only selector performs equally well, the proposed mechanism is not
-supported even if the combined system beats zero-shot CLIP.
+The facility objective supplies the exact-budget support set. Its submodularity is an
+established mathematical fact, not a new theorem or an accuracy guarantee.
 
-## Work packages
+## Required work
 
-### A. Correctness and provenance
+### 1. Register a new protocol
 
-- Keep one method implementation shared by package, tests, and notebook.
-- Resolve encoder/checkpoint activation compatibility.
-- Hash ordered samples and cached arrays.
-- Record the git revision, environment, configuration, and every required result file.
-- Keep historical artifacts separate from corrected evidence.
+- Choose an external dataset before examining method results.
+- Save content hashes and fixed train, validation, and confirmatory indices.
+- Declare one primary metric, one effect boundary, and one uncertainty procedure.
+- Freeze the encoder, memory budget, seeds, and model-selection rule.
 
-### B. Primary experiment
+### 2. Isolate the mechanism
 
-- Use equal candidate pools and final budgets.
-- Compare reliability-aware and coverage-only selection.
-- Tune each method on validation data.
-- Report the full budget curve over three seeds.
-- Preserve per-example outputs for paired tests.
+Use a small factorial comparison at an equal stored-image budget:
 
-### C. Mechanism ablations
+- global retrieval versus class-conditional retrieval;
+- uniform prototype weights versus reliability weights; and
+- visual-only scores versus fixed text fusion.
 
-- reliability in selection versus no reliability in selection;
-- reliability in voting versus uniform voting;
-- compactness, purity, and alignment individually;
-- visual-only, text-only, and validation-selected fusion; and
-- candidate multiplier and objective-weight sensitivity.
+Do not add a continuous gate unless development data shows a stable nonzero slope across
+seeds. Keep the confirmatory hypothesis limited to one mechanism.
 
-### D. Strong baselines and scale
+### 3. Improve external validity
 
-- matched Tip-Adapter;
-- CLIP-Adapter or another trainable lightweight adapter;
-- current prototype/cache selection baseline;
-- large-scale dataset and natural shifts; and
-- more than one encoder family or scale.
+- Add a second encoder family.
+- Include natural distribution shifts when the dataset supports them.
+- Compare with Tip-Adapter and a current cache-compression or prototype baseline.
+- Report class-level results for visually and semantically overlapping categories.
 
-### E. Secondary behaviour
+### 4. Measure system cost
 
-- evidence precision and fixed-rule qualitative failures;
-- class insertion with old-prototype hashes;
-- OOD detection against simple established scores; and
-- build/query cost and memory use.
+- Count serialized bytes for images, embeddings, labels, and learned parameters.
+- Measure encoder-inclusive latency and memory-only scoring latency separately.
+- Report memory-build time and peak host and accelerator memory.
+- Keep hardware, batch size, warm-up, and repetition count fixed.
 
-## Decision points
+### 5. Test evidence quality
 
-1. Run validation mode. Any missing artifact or cross-cell error stops the full run.
-2. Run the corrected three-seed protocol.
-3. Proceed to a method paper only if the primary matched-ablation signal passes on at
-   least half of the predeclared budgets and has meaningful paired uncertainty.
-4. Add the large-scale extension before targeting a highly selective archival venue.
-5. If the primary signal fails, narrow, analyze the failure, or stop; do not move the
-   goalposts.
+- Define evidence precision before evaluation.
+- Measure whether returned prototypes agree with the predicted and true labels.
+- Use a fixed rule to select qualitative successes and failures.
+- Add a human audit only after the task, sampling rule, and evaluation form are fixed.
 
-The detailed rules are frozen in `docs/EXPERIMENT_PROTOCOL.md`, and claim status is
-tracked in `docs/CLAIM_LEDGER.md`.
+## Decision rule
+
+Proceed with a positive mechanism paper only if the registered matched ablation passes.
+If the mechanism fails again, present it as a negative result or remove the mechanism.
+Do not search for a favorable class, seed, budget, or metric after the confirmatory run.
+
+The active protocol is in `docs/EXPERIMENT_PROTOCOL.md`. Claim status is in
+`docs/CLAIM_LEDGER.md`. The verified result archive is in
+`results/confirmatory/uie22k-v4-7ce2d2de/`.
