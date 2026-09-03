@@ -35,7 +35,7 @@ be checked against the publisher or official repository before it enters a paper
 ## Submodular and coreset selection
 
 Facility-location objectives and greedy submodular maximization are established tools.
-EvidenceMem's approximation statement is therefore not a new theorem. The v4
+EvidenceMem's approximation statement is therefore not a new theorem. The confirmatory
 confirmatory run uses coverage-only facility selection, then applies reliability during
 scoring and fusion. The completed experiment did not establish a reliability-related
 accuracy gain over the equal-count facility baseline.

@@ -7,7 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-DEFAULT_RELEASE = Path("results/confirmatory/uie22k-v4-7ce2d2de")
+DEFAULT_RELEASE = Path("results/confirmatory/uie22k-confirmatory")
 
 
 def main() -> None:

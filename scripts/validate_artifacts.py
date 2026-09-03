@@ -9,9 +9,9 @@ from pathlib import Path
 
 REPOSITORY = Path(__file__).resolve().parents[1]
 SOURCE_NOTEBOOK = REPOSITORY / "notebooks" / "EvidenceMem_Colab_T4.ipynb"
-UIE_NOTEBOOK = REPOSITORY / "notebooks" / "EvidenceMem_UIE22K_V4_T4.ipynb"
+UIE_NOTEBOOK = REPOSITORY / "notebooks" / "EvidenceMem_UIE22K_Development_T4.ipynb"
 UIE_CONFIRMATORY_NOTEBOOK = (
-    REPOSITORY / "notebooks" / "EvidenceMem_UIE22K_V4_Confirmatory_T4.ipynb"
+    REPOSITORY / "notebooks" / "EvidenceMem_UIE22K_Confirmatory_T4.ipynb"
 )
 LEGACY_NOTEBOOK = REPOSITORY / "results" / "evidencemem.ipynb"
 
@@ -91,7 +91,7 @@ def main() -> None:
         name for name, marker in uie_requirements.items() if marker not in uie_joined
     ]
     if uie_missing:
-        raise SystemExit(f"UIE v4 notebook is missing safeguards: {uie_missing}")
+        raise SystemExit(f"UIE development notebook is missing safeguards: {uie_missing}")
     uie_forbidden = {
         "obsolete resolution loop": "CFG.resolutions",
         "obsolete shared-resolution cache": "RESOLUTION_DATA",
@@ -102,15 +102,17 @@ def main() -> None:
         name for name, marker in uie_forbidden.items() if marker in uie_joined
     ]
     if uie_present:
-        raise SystemExit(f"UIE v4 notebook contains obsolete code: {uie_present}")
+        raise SystemExit(f"UIE development notebook contains obsolete code: {uie_present}")
     cell_ids = [cell.get("id") for cell in uie["cells"]]
     if len(cell_ids) != len(set(cell_ids)):
-        raise SystemExit("UIE v4 notebook cell IDs are not unique")
+        raise SystemExit("UIE development notebook cell IDs are not unique")
     for index, cell in enumerate(uie["cells"]):
         if cell.get("cell_type") != "code":
             continue
         if cell.get("execution_count") is not None or cell.get("outputs"):
-            raise SystemExit(f"UIE v4 source cell {index} contains retained outputs")
+            raise SystemExit(
+                f"UIE development source cell {index} contains retained outputs"
+            )
         ast.parse("".join(cell.get("source", [])), filename=f"{UIE_NOTEBOOK.name}:cell-{index}")
 
     confirmatory = json.loads(UIE_CONFIRMATORY_NOTEBOOK.read_text(encoding="utf-8"))
@@ -211,7 +213,7 @@ def main() -> None:
         raise SystemExit("root README must remain venue-neutral")
     print(
         f"Artifact audit passed: {len(source_code)} clean source cells, "
-        f"{len(uie_code)} UIE v4 code cells, "
+        f"{len(uie_code)} UIE development code cells, "
         f"{len(confirmatory_code)} frozen confirmatory code cells, "
         f"{executed} executed legacy cells, "
         f"package {project_version[1]}."

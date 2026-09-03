@@ -8,7 +8,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_NOTEBOOK = ROOT / "notebooks" / "EvidenceMem_Colab_T4.ipynb"
-OUTPUT_NOTEBOOK = ROOT / "notebooks" / "EvidenceMem_UIE22K_V4_T4.ipynb"
+OUTPUT_NOTEBOOK = ROOT / "notebooks" / "EvidenceMem_UIE22K_Development_T4.ipynb"
 CELL_DIR = ROOT / "scripts" / "notebook_cells"
 
 

@@ -11,9 +11,9 @@ import pytest
 from evidencemem.cache import load_embedding_cache, save_embedding_cache
 
 REPOSITORY = Path(__file__).resolve().parents[1]
-NOTEBOOK = REPOSITORY / "notebooks" / "EvidenceMem_UIE22K_V4_T4.ipynb"
+NOTEBOOK = REPOSITORY / "notebooks" / "EvidenceMem_UIE22K_Development_T4.ipynb"
 CONFIRMATORY_NOTEBOOK = (
-    REPOSITORY / "notebooks" / "EvidenceMem_UIE22K_V4_Confirmatory_T4.ipynb"
+    REPOSITORY / "notebooks" / "EvidenceMem_UIE22K_Confirmatory_T4.ipynb"
 )
 
 

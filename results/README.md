@@ -4,10 +4,14 @@ This directory separates the verified confirmatory release from historical noteb
 
 ## Verified confirmatory release
 
-[`confirmatory/uie22k-v4-7ce2d2de/`](confirmatory/uie22k-v4-7ce2d2de/) is the result
+[`confirmatory/uie22k-confirmatory/`](confirmatory/uie22k-confirmatory/) is the result
 source for the paper and the root README. It contains the complete executed notebook,
 the full prediction archive, all tables, the split manifest, figures, and a release-level
 SHA-256 manifest.
+
+[`historical_small_benchmark_summary.csv`](historical_small_benchmark_summary.csv)
+extracts the earlier CIFAR-10 and CIFAR-100 classification results with descriptive
+method names. The paper reports these values as exploratory context only.
 
 Verify the release from the repository root:
 

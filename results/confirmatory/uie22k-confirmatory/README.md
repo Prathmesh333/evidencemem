@@ -1,6 +1,6 @@
-# UIE-22K v4 confirmatory release
+# UIE-22K confirmatory release
 
-This directory contains the completed EvidenceMem v4 confirmatory run. The run used one
+This directory contains the completed EvidenceMem confirmatory run. The run used one
 Tesla T4 and evaluated a frozen SigLIP 2 encoder on 3,300 confirmatory images. It used
 five memory seeds and 40 stored prototypes per class.
 
@@ -20,7 +20,7 @@ supported.
 
 | File | Purpose |
 |---|---|
-| `EvidenceMem_UIE22K_V4_Confirmatory_T4_executed.ipynb` | Complete Kaggle execution with outputs |
+| `EvidenceMem_UIE22K_Confirmatory_T4_executed.ipynb` | Complete Kaggle execution with outputs |
 | `full_run_with_predictions.zip` | Original 91-member run archive, including 65 raw prediction packets |
 | `release_manifest.json` | SHA-256 and byte count for every published file in this directory |
 | `run_manifest.json` | Original run-level manifest for 23 required artifacts |
@@ -28,6 +28,7 @@ supported.
 | `uie22k_manifest.csv` | Exact 22,000-image split with paths and content hashes |
 | `classification_results.csv` | Per-seed classification and efficiency metrics |
 | `classification_summary.csv` | Mean and standard deviation by method |
+| `publication_classification_summary.csv` | Paper-facing table with descriptive method names and percentages |
 | `confirmatory_hypotheses.csv` | Primary and secondary decisions with paired intervals |
 | `memory_budget_summary.csv` | Exploratory 20-, 40-, and 80-image-per-class results |
 | `per_class_accuracy.csv` | Derived class-level accuracy for EvidenceMem, full kNN, and facility selection |

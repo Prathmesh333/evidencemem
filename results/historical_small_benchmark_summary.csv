@@ -1,0 +1,11 @@
+dataset,classes,train_images,validation_images,test_images,stored_prototypes,method,accuracy_percent,accuracy_std_percent,status
+CIFAR-10,10,45000,5000,10000,200,EvidenceMem fused memory,89.5767,0.1079,historical_exploratory
+CIFAR-10,10,45000,5000,10000,200,K-means medoids,86.0933,0.4315,historical_exploratory
+CIFAR-10,10,45000,5000,10000,0,Zero-shot CLIP,85.2500,0.0000,historical_exploratory
+CIFAR-10,10,45000,5000,10000,45000,Full kNN,82.2900,0.0000,historical_exploratory
+CIFAR-10,10,45000,5000,10000,,Linear probe,93.8400,0.0000,historical_exploratory
+CIFAR-100,100,45000,5000,10000,2000,EvidenceMem fused memory,66.7333,0.2003,historical_exploratory
+CIFAR-100,100,45000,5000,10000,2000,K-means medoids,49.6533,4.1729,historical_exploratory
+CIFAR-100,100,45000,5000,10000,0,Zero-shot CLIP,63.1800,0.0000,historical_exploratory
+CIFAR-100,100,45000,5000,10000,45000,Full kNN,46.0300,0.0000,historical_exploratory
+CIFAR-100,100,45000,5000,10000,,Linear probe,74.8500,0.0000,historical_exploratory

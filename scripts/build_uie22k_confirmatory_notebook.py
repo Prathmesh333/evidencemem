@@ -10,9 +10,9 @@ import textwrap
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-DEVELOPMENT_NOTEBOOK = ROOT / "notebooks" / "EvidenceMem_UIE22K_V4_T4.ipynb"
+DEVELOPMENT_NOTEBOOK = ROOT / "notebooks" / "EvidenceMem_UIE22K_Development_T4.ipynb"
 OUTPUT_NOTEBOOK = (
-    ROOT / "notebooks" / "EvidenceMem_UIE22K_V4_Confirmatory_T4.ipynb"
+    ROOT / "notebooks" / "EvidenceMem_UIE22K_Confirmatory_T4.ipynb"
 )
 STATISTICS_CELL = (
     ROOT

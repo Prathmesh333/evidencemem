@@ -1,0 +1,12 @@
+method,stored_images,accuracy_percent,accuracy_std_percent,macro_f1_percent,macro_f1_std_percent,ece_percent,study_status
+Linear probe,,96.6667,0.0000,96.6589,0.0000,1.1819,confirmatory
+Full kNN,13200,95.9091,0.0000,95.8825,0.0000,1.1951,confirmatory
+EvidenceMem reliability-weighted fusion,440,94.9273,0.2170,94.8777,0.2132,1.8114,confirmatory
+EvidenceMem fixed fusion,440,94.9212,0.2170,94.8713,0.2129,1.7990,confirmatory
+EvidenceMem visual scoring,440,94.8970,0.1800,94.8465,0.1758,1.9265,confirmatory
+Facility selection without reliability,440,94.8061,0.1041,94.7580,0.0995,1.8683,confirmatory
+EvidenceMem global retrieval,440,94.7455,0.0973,94.6944,0.0928,4.1183,confirmatory
+K-means medoids,440,94.5273,0.1888,94.4637,0.1928,2.5448,confirmatory
+Random memory,440,92.7697,0.3254,92.6726,0.3193,3.3749,confirmatory
+Tip-Adapter matched cache,440,91.5758,0.1071,91.3776,0.0749,4.0979,confirmatory
+Zero-shot text classifier,0,87.9697,0.0000,87.6938,0.0000,32.4948,confirmatory

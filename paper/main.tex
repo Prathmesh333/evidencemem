@@ -60,9 +60,9 @@ the retrieved items for inspection.
 
 Compression creates two different problems. The selected prototypes must cover the
 visual variation within each class, and the scoring rule must avoid over-trusting weak
-or atypical prototypes. Our earlier implementation mixed these concerns inside the
+or atypical prototypes. Our first implementation mixed these concerns inside the
 selection objective. Development experiments suggested that reliability-aware
-selection could sacrifice useful coverage. The present version therefore freezes the
+selection could sacrifice useful coverage. The confirmatory design therefore freezes the
 support set produced by a coverage-only facility objective and uses reliability only
 when scoring the selected prototypes and combining visual and textual predictions.
 This distinction matters: the experiment tests reliability-aware scoring on a matched
@@ -83,7 +83,10 @@ However, the result fails the predeclared non-inferiority test and shows no clea
 over the matched facility baseline. Figure~\ref{fig:main} places the result beside the
 other frozen baselines. The negative decisions are scientifically useful. They separate
 a promising compression point estimate from conclusions that the data do not support.
-The error analysis also shows where the remaining errors are concentrated.
+The error analysis also shows where the remaining errors are concentrated. We further
+report earlier CIFAR-10, CIFAR-100, and SVHN studies as exploratory context. Those runs
+motivated the confirmatory design, but they do not share its encoder or method and are
+not used to decide the frozen hypotheses.
 
 \begin{figure*}[t]
   \centering
@@ -138,7 +141,8 @@ vectors and their source identifiers.
 
 \subsection{Coverage-selected real-image prototypes}
 
-For each class, we first fit $2B$ MiniBatchKMeans clusters to its support vectors. The
+For each class, we first fit $2B$ mini-batch k-means clusters~\cite{sculley2010web} to
+its support vectors. The
 candidate for a cluster is the member nearest its normalized centroid, which guarantees
 that every candidate maps to a displayable source image. We then greedily select $B$
 candidates. If $V_c$ denotes all support vectors in class $c$ and $S_c$ a candidate set,
@@ -150,7 +154,8 @@ F_c(S_c)=\frac{1}{|V_c|}\sum_{z\in V_c}\max_{p\in S_c}
 \end{equation}
 The transform maps cosine similarity to $[0,1]$. Greedy selection starts from an empty
 set and adds the candidate with the largest marginal gain until $|S_c|=B$. The same
-selected indices are used by the facility control and the v4 treatment.
+selected indices are used by the facility control and the reliability-weighted
+treatment.
 
 \subsection{Prototype reliability}
 
@@ -200,6 +205,22 @@ temperature is also selected on validation negative log likelihood. Four of five
 selected $s=0$; the adaptive gate therefore collapsed to a constant in most runs. We
 report this because it limits the evidence for query-adaptive fusion.
 
+\subsection{Inference cost and inspectability}
+
+Full kNN compares each query with all $n$ support vectors, which requires
+$O(nd)$ similarity work for embedding dimension $d$. The bounded memory compares a
+query with $BC$ prototype vectors and therefore requires $O(BCd)$ work. At the default
+setting, $n=13{,}200$ and $BC=440$, so the visual search contains 30 times fewer stored
+vectors. Prototype construction is an offline cost. It combines class-wise
+MiniBatchKMeans with greedy facility selection; neither operation runs when the model
+answers a query.
+
+The classifier retains the source identifier for every medoid. A prediction can
+therefore return its highest-scoring real images together with the class probability.
+This property gives an auditor a concrete record of the retrieved support. It does not
+make the retrieved images a causal explanation, and we do not evaluate human trust or
+evidence usefulness in this study.
+
 \section{Confirmatory Protocol}
 \label{sec:protocol}
 
@@ -223,7 +244,7 @@ incorrect.
 
 \subsection{Freeze and baselines}
 
-Development results fixed protocol revision 2.0.1, sample seed 2026, memory seeds
+Development results fixed sample seed 2026, memory seeds
 $\{7,17,29,43,61\}$, the SigLIP~2 checkpoint, the continuous-fusion variant, and
 $B=40$. A dedicated confirmatory notebook permits no environment override for the
 encoder or evaluation split and checks the frozen repository tag and package tree
@@ -248,11 +269,12 @@ five seeds, its smallest possible two-sided value is 0.0625, so it is supporting
 than decisive evidence.
 
 Accuracy and macro F1 summarize classification. We report 15-bin expected calibration
-error (ECE) after validation-only temperature selection and area under the selective
-risk--coverage curve (AURC). Reported query time covers the memory or classifier scoring
-stage only; it excludes image decoding, preprocessing, and encoder inference.
+error (ECE) after validation-only temperature selection~\cite{guo2017calibration} and
+area under the selective risk--coverage curve (AURC)~\cite{geifman2017selective}.
+Reported query time covers the memory or classifier scoring stage only; it excludes
+image decoding, preprocessing, and encoder inference.
 
-\subsection{Artifact audit}
+\subsection{Reproducibility checks}
 
 The run completed on one Tesla T4 with Python 3.12.13 and PyTorch 2.10.0. Its executed
 notebook contains 23 cells, including 14 code cells with execution counts 1 through 14
@@ -287,7 +309,7 @@ Method & Stored images & Accuracy & Macro F1 & ECE \\
 \midrule
 Linear probe & -- & 96.67 & 96.66 & 1.18 \\
 Full kNN & 13,200 & 95.91 & 95.88 & 1.20 \\
-\method{} continuous fusion & 440 & $94.93\pm0.22$ & $94.88\pm0.21$ & 1.81 \\
+\method{} reliability-weighted fusion & 440 & $94.93\pm0.22$ & $94.88\pm0.21$ & 1.81 \\
 Facility selection, no reliability & 440 & $94.81\pm0.10$ & $94.76\pm0.10$ & 1.87 \\
 K-means medoids & 440 & $94.53\pm0.19$ & $94.46\pm0.19$ & 2.54 \\
 Random memory & 440 & $92.77\pm0.33$ & $92.67\pm0.33$ & 3.37 \\
@@ -374,8 +396,50 @@ The mechanism ablation is equally informative. Class-conditional visual scoring 
 reaches $94.90\%$; fixed fusion reaches $94.92\%$; continuous fusion reaches $94.93\%$.
 The three values differ by at most $0.03$ points. Four validation runs set the continuous
 gate slope to zero, and three set its intercept to zero. The present evidence therefore
-points to class-conditional coverage as the useful part of v4, not a reliable benefit
+points to class-conditional coverage as the useful part of the tested method, not a
 from per-query fusion adaptation.
+
+\subsection{Earlier small-benchmark results}
+
+Table~\ref{tab:precursor} reports the historical classification runs described in
+Appendix~\ref{sec:precursor-protocol}. On CIFAR-10, the fused memory reached
+$89.58\%$ accuracy with 200 stored prototypes. It exceeded zero-shot CLIP by 4.33
+points and K-means medoids by 3.48 points, but remained 4.26 points below the linear
+probe. On CIFAR-100, the memory reached $66.73\%$ with 2,000 prototypes. It exceeded
+zero-shot CLIP by 3.55 points and remained 8.12 points below the linear probe.
+
+\begin{table*}[t]
+\centering
+\small
+\caption{Exploratory classification on the earlier small-image benchmarks. The fused
+memory and K-means values are mean $\pm$ standard deviation over three memory seeds.
+These historical runs use a different method and encoder configuration from the
+confirmatory study; they provide context, not additional confirmatory evidence.}
+\label{tab:precursor}
+\begin{tabular}{lrrrrrrr}
+\toprule
+Dataset & Classes & Stored & Zero-shot & Full kNN & K-means & Fused memory & Linear probe \\
+\midrule
+CIFAR-10 & 10 & 200 & 85.25 & 82.29 & $86.09\pm0.43$ & $89.58\pm0.11$ & 93.84 \\
+CIFAR-100 & 100 & 2,000 & 63.18 & 46.03 & $49.65\pm4.17$ & $66.73\pm0.20$ & 74.85 \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+The OOD experiment treats CIFAR-10 as in-distribution. Maximum softmax probability
+from the fused memory obtains AUROC 0.897 on CIFAR-100 and 0.985 on SVHN. Predictive
+entropy performs better, with AUROC 0.907 and 0.991, respectively. At a threshold that
+accepts 95\% of CIFAR-10 validation examples, its false-positive rate is 0.520 on
+CIFAR-100 and 0.011 on SVHN. The near-OOD result remains difficult. More important,
+the proposed disagreement score does not beat predictive entropy. These observations
+prevent an unsupported claim that memory-specific confidence improves OOD detection.
+
+The two classification studies also expose a change in representation geometry. Full
+kNN trails zero-shot classification on both resized CIFAR datasets but is strong on the
+11-category image collection. A compact memory is therefore not uniformly useful
+because it is small. Its behavior depends on the encoder, image resolution, class
+semantics, and local neighborhood quality. This finding motivated the stronger frozen
+protocol and the matched facility control.
 
 \subsection{Calibration and scoring cost}
 
@@ -390,6 +454,16 @@ selection, and 0.103 ms for full kNN. Class-conditional retrieval is slower than
 single search over the same 440 prototypes, yet still faster than the 13,200-vector kNN
 search in this implementation. These timings exclude the frozen encoder and were taken
 inside one Kaggle run, so they describe the experiment rather than deployment latency.
+
+\subsection{What the evaluation establishes}
+
+The evidence supports three statements. First, the selected real-image memory offers
+a measured accuracy--storage tradeoff: it retains 3.33\% of the kNN support images and
+loses 0.982 accuracy points on average. Second, coverage selection is consistently
+stronger than random storage at the same budget. Third, reliability-aware scoring does
+not produce a stable improvement over the matched support set. The evaluation does not
+establish accuracy parity, native 512-pixel encoding gains, causal explanations, or
+generalization across encoder families. These boundaries define the paper's claims.
 
 \section{Discussion}
 
@@ -414,6 +488,13 @@ examples that can be retrieved and inspected. A paper about this system should e
 that operational value directly, perhaps through evidence fidelity or a human error-audit
 study, rather than treating retrieved neighbors as causal explanations.
 
+The precursor results sharpen that conclusion. They show that memory-plus-text fusion
+can outperform its visual and textual endpoints on small benchmarks, yet that pattern
+does not isolate the source of the gain. The confirmatory controls show that most of the
+useful behavior comes from class-conditional coverage. Future work should keep the
+support set fixed while testing each scoring component. It should also report a
+compute-matched nonparametric baseline and an embedding-only storage comparison.
+
 \section{Limitations}
 
 The experiment uses one selected encoder and one balanced 11-class subset. Encoder
@@ -435,6 +516,13 @@ pairing, while the exact seed-level test has low resolution. Budget results outs
 40 images per class are exploratory. Finally, nearest prototypes are associative
 evidence. They can expose what the classifier retrieved, but they do not prove why a
 prediction was made or whether a visual feature is causally responsible.
+
+The CIFAR and SVHN findings are historical observations, not a second confirmatory
+study. Their encoder initialization emitted an activation-mismatch warning, their
+selection rule predates the matched-support design, and their result bundle lacks the
+complete integrity manifest used for the 22,000-image experiment. We report those
+numbers with this qualification instead of silently discarding them. A new registered
+run is required before they can support cross-dataset claims about the final method.
 
 \section{Broader Impact}
 
@@ -504,5 +592,75 @@ python scripts/verify_confirmatory_release.py
 \end{verbatim}
 The command checks archive CRCs and hashes, every published file, notebook execution,
 prediction shapes and probabilities, and all recomputable classification metrics.
+
+\subsection{Exploratory precursor studies}
+\label{sec:precursor-protocol}
+
+Before the confirmatory study, we tested the memory idea on CIFAR-10 and
+CIFAR-100~\cite{krizhevsky2009learning}. Both runs used 45,000 training, 5,000
+validation, and 10,000 test images resized from 32 pixels to a 224-pixel OpenCLIP
+ViT-B/32 input, with three seeds and 20 prototypes per class. CIFAR-100 and
+SVHN~\cite{netzer2011reading} also served as OOD inputs for the CIFAR-10 classifier.
+
+These runs use reliability during selection and global fusion, whereas the confirmatory
+method uses matched coverage selection and class-conditional scoring. They also record
+a noncanonical CLIP activation warning. The results explain the research path but do
+not enter the confirmatory statistics or hypothesis decisions.
+
+\section{Confirmatory Error Audit}
+
+Table~\ref{tab:per-class} reports the seed-averaged class results. The compact memory
+matches full kNN most closely on apparel and furniture and exceeds it on memes. Its
+largest shortfalls occur on artwork and illustrations. These categories are defined
+partly by visual style rather than by a single object type, which makes a local
+neighborhood sensitive to the boundary between the two labels. The matched facility
+control has almost the same class profile. This agreement is consistent with the main
+ablation: support-set coverage explains more of the result than the learned reliability
+weights.
+
+\begin{table}[t]
+\centering
+\caption{Confirmatory accuracy by class, averaged over five seeds. All values are
+percent. $\Delta$ is \method{} minus full kNN.}
+\label{tab:per-class}
+\scriptsize
+\setlength{\tabcolsep}{3.0pt}
+\begin{tabular}{lrrrr}
+\toprule
+Class & \method{} & kNN & Facility & $\Delta$ \\
+\midrule
+Apparel        & 99.20 & 99.00 & 99.27 &  0.20 \\
+Artwork        & 78.67 & 83.67 & 78.73 & -5.00 \\
+Cars           & 99.87 &100.00 & 99.93 & -0.13 \\
+Dishes         & 98.73 & 99.67 & 98.20 & -0.93 \\
+Furniture      & 97.93 & 98.00 & 97.93 & -0.07 \\
+Illustrations  & 93.20 & 95.33 & 93.33 & -2.13 \\
+Landmarks      & 95.87 & 96.67 & 96.07 & -0.80 \\
+Memes          & 95.67 & 95.00 & 95.80 &  0.67 \\
+Packaged goods & 97.67 & 98.33 & 97.53 & -0.67 \\
+Storefronts    & 91.67 & 92.67 & 90.73 & -1.00 \\
+Toys           & 95.73 & 96.67 & 95.33 & -0.93 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Across the five confirmatory predictions, artwork is assigned to illustrations 132
+times, to landmarks 89 times, and to memes 51 times; the reverse artwork--illustration
+error occurs 39 times. Other recurring pairs include storefronts to illustrations (35),
+landmarks to storefronts (32), and memes to illustrations (32). This asymmetry suggests
+that the broad artwork class contains modes represented more tightly by neighboring
+style or scene classes. More memory may therefore have diminishing returns unless
+selection also protects minority modes.
+
+\subsection{Qualitative evidence protocol}
+
+The qualitative release contains six fixed seed-7 queries: three high-confidence errors
+and three low-confidence correct predictions. For each query it shows the three
+highest-scoring prototypes from the predicted class, their similarities, the text
+weight, and reliability. Two errors map artwork to illustrations; one maps artwork to
+storefronts. This display supports error inspection, not causal explanation. Because
+retrieval is class-conditional, all shown neighbors have the predicted label by
+construction. A follow-up study should compare predicted and runner-up evidence and
+test counterfactual prototype removal on an unchanged support set.
 
 \end{document}

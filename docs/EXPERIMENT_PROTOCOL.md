@@ -1,10 +1,10 @@
-# Frozen UIE-22K v4 experiment protocol
+# Frozen UIE-22K experiment protocol
 
 ## Status
 
 The confirmatory run is complete. The frozen protocol is `uie22k_evidencemem_v4`,
 revision `2.0.1`. The result source is
-`results/confirmatory/uie22k-v4-7ce2d2de/`.
+`results/confirmatory/uie22k-confirmatory/`.
 
 No parameter can be tuned on the confirmatory split after this run. A new hypothesis
 requires a new protocol and untouched data.
@@ -61,7 +61,7 @@ Each source file is 512 by 512 pixels. The selected checkpoint uses its native
 
 ## Method under test
 
-EvidenceMem v4 uses the following sequence for each memory seed:
+EvidenceMem uses the following sequence for each memory seed:
 
 1. Encode all images with the frozen SigLIP 2 image encoder.
 2. Normalize every embedding.
@@ -78,7 +78,7 @@ EvidenceMem v4 uses the following sequence for each memory seed:
 12. Evaluate the frozen configuration on the confirmatory split.
 
 The treatment and facility control use the same prototype indices. Reliability changes
-scoring and fusion. It does not change prototype selection in v4.
+scoring and fusion. It does not change prototype selection in the confirmatory method.
 
 ## Baselines
 
@@ -91,8 +91,8 @@ The default comparison includes:
 - one nearest-to-centroid example per class;
 - K-means medoids;
 - equal-count facility selection without reliability;
-- the earlier v2 reliability-selection method;
-- global, visual-only, fixed-fusion, and continuous-fusion v4 variants; and
+- the earlier reliability-selection method;
+- global, visual-only, fixed-fusion, and continuous-fusion variants; and
 - Tip-Adapter with the same cache size as the bounded memories.
 
 Every method uses the same frozen embeddings. Validation data selects method-specific

@@ -2,13 +2,13 @@
 
 This ledger separates verified facts, unsupported hypotheses, exploratory observations,
 and prohibited claims. The only final numerical source is
-`results/confirmatory/uie22k-v4-7ce2d2de/`.
+`results/confirmatory/uie22k-confirmatory/`.
 
 | ID | Claim | Evidence | Decision |
 |---|---|---|---|
 | C0 | The implementation returns the requested number of prototypes per class when duplicate filtering is disabled. | Unit tests across classes and budgets | Verified software invariant |
 | C1 | The coverage-only facility objective is nonnegative, monotone, and submodular. Cardinality-constrained greedy selection has the standard approximation guarantee for that objective. | Objective definition, implementation, and cited result | Verified mathematical property; not an accuracy guarantee |
-| C2 | Reliability-aware v4 scoring is more accurate than the equal-count facility baseline. | Mean difference +0.1212 points; hierarchical 95% interval [-0.1030, +0.3515] | Not supported |
+| C2 | Reliability-aware scoring is more accurate than the equal-count facility baseline. | Mean difference +0.1212 points; hierarchical 95% interval [-0.1030, +0.3515] | Not supported |
 | C3 | The continuous query-reliability gate provides a material benefit over fixed fusion. | Continuous 94.9273%; fixed 94.9212%; four of five selected gate slopes are zero | Not supported |
 | C4 | EvidenceMem outperforms the matched Tip-Adapter implementation on this split. | 94.9273% vs. 91.5758% at 440 stored images | Verified descriptive result for this implementation and split; not a general superiority claim |
 | C5 | Retrieved neighbors have high label agreement. | Mean global neighbor-label precision 0.8646 at 40 images per class | Verified descriptive metric; no human-utility claim |
@@ -27,7 +27,7 @@ and prohibited claims. The only final numerical source is
   more than one point. The interval crosses the decision boundary.
 - Do not convert C2 into a reliability benefit by selecting a favorable seed, class,
   budget, or metric after the confirmatory run.
-- Do not describe the v4 support set as reliability-selected. V4 reweights and scores the
+- Do not describe the confirmatory support set as reliability-selected. The method reweights and scores the
   prototypes selected by the coverage-only facility method.
 - Do not call retrieved images causal explanations. They are inspectable associations.
 - Do not describe 512-pixel source images as native 512-pixel encoder inputs. The frozen

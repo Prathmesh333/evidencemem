@@ -20,7 +20,7 @@ confirmatory images.
 |---|---:|---:|---:|---:|
 | Linear probe | Not image-based | 96.67% | 96.66% | 1.18% |
 | Full kNN | 13,200 | 95.91% | 95.88% | 1.20% |
-| EvidenceMem v4 continuous fusion | 440 | 94.93% ± 0.22% | 94.88% ± 0.21% | 1.81% |
+| EvidenceMem reliability-weighted fusion | 440 | 94.93% ± 0.22% | 94.88% ± 0.21% | 1.81% |
 | Facility selection without reliability | 440 | 94.81% ± 0.10% | 94.76% ± 0.10% | 1.87% |
 | K-means medoids | 440 | 94.53% ± 0.19% | 94.46% ± 0.19% | 2.54% |
 | Random memory | 440 | 92.77% ± 0.33% | 92.67% ± 0.33% | 3.37% |
@@ -56,7 +56,7 @@ Prototype reliability combines three signals:
 - **Neighborhood purity:** fraction of nearby training vectors with the same label.
 - **Text alignment:** similarity between the prototype and its prompted class text.
 
-EvidenceMem v4 uses the same selected prototype indices as the coverage-only facility
+EvidenceMem uses the same selected prototype indices as the coverage-only facility
 baseline. Reliability changes prototype scoring and visual--text fusion. It does not
 change the support set in the confirmatory run. This distinction prevents an incorrect
 claim that the current result validates reliability-aware prototype selection.
@@ -67,12 +67,12 @@ The project started as a vector-database classifier. A query image retrieved lab
 neighbors, and their labels determined the prediction. That design was simple but stored
 every support example and provided no fixed memory budget.
 
-The next version replaced the full database with real-image medoids. Real images made
+The first compressed design replaced the full database with real-image medoids. Real images made
 the memory inspectable, while a fixed number of medoids controlled storage. An early
-method also used reliability during prototype selection. That version reached lower
+method also used reliability during prototype selection. That design reached lower
 accuracy and did not produce a stable gain.
 
-Version 4 separates coverage from reliability. Facility selection fixes the real-image
+The confirmatory design separates coverage from reliability. Facility selection fixes the real-image
 support set. Reliability then changes class-conditional retrieval and fusion. The
 confirmatory run tests whether this scoring mechanism improves the matched support set
 and whether 440 prototypes remain within one point of full kNN. Both hypotheses were
@@ -92,10 +92,28 @@ The 40-image-per-class setting is the frozen confirmatory setting. The 20- and
 At 80 images per class, the facility baseline reaches 95.53%. The current reliability
 mechanism does not improve every memory budget.
 
+## Earlier small-benchmark experiments
+
+The first completed T4 experiment tested an earlier memory design on CIFAR-10 and
+CIFAR-100. These runs are useful for understanding how the idea developed, but they do
+not use the final confirmatory method or encoder configuration.
+
+| Dataset | Stored prototypes | Fused memory | Zero-shot CLIP | Linear probe |
+|---|---:|---:|---:|---:|
+| CIFAR-10 | 200 | 89.58% ± 0.11% | 85.25% | 93.84% |
+| CIFAR-100 | 2,000 | 66.73% ± 0.20% | 63.18% | 74.85% |
+
+The same notebook evaluated OOD rejection with CIFAR-10 as the in-distribution set.
+Predictive entropy reached AUROC 0.907 on CIFAR-100 and 0.991 on SVHN. The historical
+notebook used a noncanonical OpenCLIP activation configuration, so these values are
+reported as exploratory observations rather than evidence for the frozen hypotheses.
+The clean extract is
+[`results/historical_small_benchmark_summary.csv`](results/historical_small_benchmark_summary.csv).
+
 ## Completed notebook and full results
 
 The main release is in
-[`results/confirmatory/uie22k-v4-7ce2d2de/`](results/confirmatory/uie22k-v4-7ce2d2de/).
+[`results/confirmatory/uie22k-confirmatory/`](results/confirmatory/uie22k-confirmatory/).
 It includes:
 
 - the complete executed Kaggle notebook;
@@ -107,9 +125,9 @@ It includes:
 - a SHA-256 manifest for every published release file.
 
 The executed notebook is
-[`EvidenceMem_UIE22K_V4_Confirmatory_T4_executed.ipynb`](results/confirmatory/uie22k-v4-7ce2d2de/EvidenceMem_UIE22K_V4_Confirmatory_T4_executed.ipynb).
+[`EvidenceMem_UIE22K_Confirmatory_T4_executed.ipynb`](results/confirmatory/uie22k-confirmatory/EvidenceMem_UIE22K_Confirmatory_T4_executed.ipynb).
 The unexecuted source notebook is
-[`notebooks/EvidenceMem_UIE22K_V4_Confirmatory_T4.ipynb`](notebooks/EvidenceMem_UIE22K_V4_Confirmatory_T4.ipynb).
+[`notebooks/EvidenceMem_UIE22K_Confirmatory_T4.ipynb`](notebooks/EvidenceMem_UIE22K_Confirmatory_T4.ipynb).
 
 The release audit checks the notebook, ZIP archive, source run manifest, and raw
 predictions. It independently recalculates accuracy, balanced accuracy, macro F1,
@@ -127,7 +145,7 @@ python scripts/verify_confirmatory_release.py
 Use the committed source notebook only if you need to reproduce the frozen run. Do not
 change its encoder, split, memory budget, seeds, or hypotheses.
 
-1. Upload `notebooks/EvidenceMem_UIE22K_V4_Confirmatory_T4.ipynb` to Kaggle.
+1. Upload `notebooks/EvidenceMem_UIE22K_Confirmatory_T4.ipynb` to Kaggle.
 2. Select a GPU T4 accelerator and enable Internet access.
 3. Add the dataset `rhtsingh/130k-images-512x512-universal-image-embeddings`.
 4. Optionally add the successful development notebook as an input. The notebook can

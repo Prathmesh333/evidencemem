@@ -8,7 +8,7 @@ The repository uses three evidence levels:
 2. **Development:** valid for method and encoder selection, but not for final claims.
 3. **Confirmatory:** frozen before evaluation and valid for a final claim decision.
 
-The UIE-22K v4 release is confirmatory. The first T4 notebook remains historical. The
+The UIE-22K release is confirmatory. The first T4 notebook remains historical. The
 repository does not delete or overwrite historical results.
 
 ## Source notebook

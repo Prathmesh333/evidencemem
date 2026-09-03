@@ -2,7 +2,7 @@
 
 ## Completed study
 
-The UIE-22K v4 confirmatory study is complete. A 440-image memory reached 94.9273%
+The UIE-22K confirmatory study is complete. A 440-image memory reached 94.9273%
 accuracy. Full kNN reached 95.9091% with 13,200 stored images. The primary
 non-inferiority rule did not pass because the 95% interval crossed the predeclared
 one-point boundary.
@@ -18,7 +18,7 @@ On a new dataset, does class-conditional prototype scoring improve a coverage-se
 memory? If it does, does reliability weighting add a measurable gain after support set,
 retrieval depth, and text fusion are matched?
 
-This sequence isolates two mechanisms that v4 combined. It also responds to the current
+This sequence isolates two mechanisms that the confirmatory method combined. It also responds to the current
 result: continuous fusion differed from fixed fusion by only 0.0061 accuracy points, and
 four of five validation runs selected a zero gate slope.
 
@@ -81,4 +81,4 @@ Do not search for a favorable class, seed, budget, or metric after the confirmat
 
 The active protocol is in `docs/EXPERIMENT_PROTOCOL.md`. Claim status is in
 `docs/CLAIM_LEDGER.md`. The verified result archive is in
-`results/confirmatory/uie22k-v4-7ce2d2de/`.
+`results/confirmatory/uie22k-confirmatory/`.

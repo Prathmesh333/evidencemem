@@ -1,8 +1,10 @@
 # Research paper
 
-`main.tex` is a complete, venue-neutral research-paper draft. It uses only the verified
-UIE-22K v4 confirmatory release. The title, abstract, tables, discussion, limitations,
-broader-impact statement, appendix, and references are included.
+`main.tex` is a complete, venue-neutral research-paper draft. Its main claims use the
+verified UIE-22K confirmatory release. It also reports the earlier CIFAR-10,
+CIFAR-100, and SVHN runs as explicitly qualified exploratory evidence. The title,
+abstract, tables, discussion, limitations, broader-impact statement, appendix, and
+references are included.
 
 The paper makes one central contribution:
 
@@ -13,7 +15,7 @@ The paper makes one central contribution:
 
 This wording is deliberate. The point estimate is within one point, but the lower 95%
 confidence bound is -1.285 points. The draft does not call the method non-inferior. It
-also does not claim that reliability changes the selected prototypes in v4. The v4 run
+also does not claim that reliability changes the selected prototypes. The confirmatory run
 uses the same facility-selected support set for the treatment and matched control.
 
 ## Build

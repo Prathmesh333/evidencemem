@@ -1,4 +1,4 @@
-"""Audit and summarize the committed UIE-22K v4 confirmatory release."""
+"""Audit and summarize the committed UIE-22K confirmatory release."""
 
 from __future__ import annotations
 
@@ -18,7 +18,17 @@ from typing import Any
 import numpy as np
 from sklearn.metrics import accuracy_score, balanced_accuracy_score, f1_score, log_loss
 
-DEFAULT_RELEASE = Path("results/confirmatory/uie22k-v4-7ce2d2de")
+DEFAULT_RELEASE = Path("results/confirmatory/uie22k-confirmatory")
+
+# These reader-facing figures are regenerated from the verified CSV tables by
+# scripts/build_publication_figures.py. The ZIP preserves the original figures, while
+# the loose copies intentionally use descriptive publication labels.
+PUBLICATION_DERIVED_ARTIFACTS = {
+    "calibration_ece.pdf",
+    "main_accuracy.pdf",
+    "memory_budget_accuracy.pdf",
+}
+
 def file_sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -136,8 +146,11 @@ def verify_original_manifest(
         if bytes_sha256(payload) != expected["sha256"]:
             raise RuntimeError(f"Archive hash mismatch: {name}")
         loose_path = release / name
-        if not loose_path.is_file() or file_sha256(loose_path) != expected["sha256"]:
-            raise RuntimeError(f"Loose result does not match source manifest: {name}")
+        if name not in PUBLICATION_DERIVED_ARTIFACTS:
+            if not loose_path.is_file() or file_sha256(loose_path) != expected["sha256"]:
+                raise RuntimeError(f"Loose result does not match source manifest: {name}")
+        elif not loose_path.is_file():
+            raise RuntimeError(f"Missing publication figure: {name}")
         verified += 1
     return manifest, verified
 
@@ -300,7 +313,7 @@ def build_release_manifest(release: Path, audit: dict[str, Any]) -> dict[str, An
         "schema_version": 1,
         "generated_utc": datetime.now(UTC).isoformat(),
         "release_id": release.name,
-        "source_run": "paper_confirmatory_uie22k_evidencemem_v4_7ce2d2de",
+        "source_run": "paper_confirmatory_uie22k_evidencemem_7ce2d2de",
         "files": files,
         "audit": audit,
     }
@@ -334,7 +347,7 @@ def main() -> None:
     )
     arguments = parser.parse_args()
     release = arguments.release.resolve()
-    notebook_path = release / "EvidenceMem_UIE22K_V4_Confirmatory_T4_executed.ipynb"
+    notebook_path = release / "EvidenceMem_UIE22K_Confirmatory_T4_executed.ipynb"
     archive_path = release / "full_run_with_predictions.zip"
     notebook_audit = audit_notebook(notebook_path)
     with zipfile.ZipFile(archive_path) as archive:

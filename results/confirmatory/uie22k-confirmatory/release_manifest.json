@@ -90,17 +90,17 @@
     }
   },
   "files": {
-    "EvidenceMem_UIE22K_V4_Confirmatory_T4_executed.ipynb": {
+    "EvidenceMem_UIE22K_Confirmatory_T4_executed.ipynb": {
       "bytes": 3062671,
       "sha256": "647c6b61470d7826a5ae54c916c2a2e72832743ee8b937f77808f25ec973a22b"
     },
     "README.md": {
-      "bytes": 3598,
-      "sha256": "f9f58c4b6cf04a308f4086abbc3c2e4110d3b90b00327da604896e953a0334e9"
+      "bytes": 3701,
+      "sha256": "b63dde032b50073b44872d05003c78896c9678e8050df2c88e91a749ff56ad72"
     },
     "calibration_ece.pdf": {
-      "bytes": 17355,
-      "sha256": "a7d7a96c3683a5f2787ae1a42853474291c68fc2b4ec17304219d6373b150ab8"
+      "bytes": 14962,
+      "sha256": "97668bed777a2a8037d7b117b87fae2e67ab1a27bdf2969ea8b44ebec0a8ab6e"
     },
     "calibration_summary.csv": {
       "bytes": 13729,
@@ -163,12 +163,12 @@
       "sha256": "c94b557e208420dfef1eda45df6d1b9dbb5e6ada86cacf7ab7473076c7ffb3ea"
     },
     "main_accuracy.pdf": {
-      "bytes": 16721,
-      "sha256": "4591082bd45582462c6241ece066193fd8ba15367353619d6078a30df2346dfe"
+      "bytes": 18028,
+      "sha256": "55001366283c8a8bd83eb0511f49d11aab6071e81fd2f7a3c88788c80d81dd2c"
     },
     "memory_budget_accuracy.pdf": {
-      "bytes": 17912,
-      "sha256": "7f65d6684ec5bd10c39732d464e96ab470c070a89f9e7e602c1a22722c9b99d8"
+      "bytes": 17392,
+      "sha256": "e1812d81391bb0ff1b596af30625a560d7ad66a3853c9962b42bd382df8c8f75"
     },
     "memory_budget_results.csv": {
       "bytes": 13672,
@@ -189,6 +189,10 @@
     "per_class_accuracy.csv": {
       "bytes": 1273,
       "sha256": "6c52caec34a5045e82f08bc940a702022e95f1615b665e39d792d7843d413981"
+    },
+    "publication_classification_summary.csv": {
+      "bytes": 978,
+      "sha256": "546267b31b58706516a26cbedb25acbe1182ea992e5897054c94d36faf4af9ba"
     },
     "qualitative_evidence.csv": {
       "bytes": 1950,
@@ -219,8 +223,8 @@
       "sha256": "aeb227bece6011d61b9e10f3ef2abdf146e2812da475eada368e09ac0e09ae4e"
     }
   },
-  "generated_utc": "2026-09-02T15:04:07.116009+00:00",
-  "release_id": "uie22k-v4-7ce2d2de",
+  "generated_utc": "2026-09-03T07:40:17.315154+00:00",
+  "release_id": "uie22k-confirmatory",
   "schema_version": 1,
-  "source_run": "paper_confirmatory_uie22k_evidencemem_v4_7ce2d2de"
+  "source_run": "paper_confirmatory_uie22k_evidencemem_7ce2d2de"
 }
